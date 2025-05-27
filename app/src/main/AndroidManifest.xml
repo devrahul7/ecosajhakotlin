@@ -13,6 +13,32 @@
         android:theme="@style/Theme.Ecosajha"
         tools:targetApi="31">
         <activity
+            android:name=".LoginActivity"
+            android:exported="false"
+            android:label="@string/title_activity_login"
+            android:theme="@style/Theme.Ecosajha" />
+        <activity
+            android:name=".DashboardActivity"
+            android:exported="false"
+            android:label="@string/title_activity_dashboard"
+            android:theme="@style/Theme.Ecosajha" />
+        <activity
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:label="@string/title_activity_splash"
+            android:theme="@style/Theme.Ecosajha">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".LoginAcitivity"
+            android:exported="false"
+            android:label="@string/title_activity_login_acitivity"
+            android:theme="@style/Theme.Ecosajha" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
