@@ -1,4 +1,4 @@
-package com.example.inkspira_adigitalartportfolio.view
+package com.example.ecosajha.view
 
 import android.app.Activity
 import android.content.Intent
@@ -58,7 +58,7 @@ import com.example.ecosajha.view.AddProductActivity
 import com.example.ecosajha.view.UpdateProductActivity
 import com.example.ecosajha.viewmodel.ProductViewModel
 
-class NavigationActivity : ComponentActivity() {
+class DashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
