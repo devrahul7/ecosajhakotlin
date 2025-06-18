@@ -111,6 +111,7 @@ fun ResetPasswordBody() {
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
                         tint = Color.Black
+
                     )
                 }
             }
@@ -201,11 +202,15 @@ fun ResetPasswordBody() {
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Remember your password? Login",
+                    text = "Remember your password? Login",color = Color.Blue,
                     modifier = Modifier.clickable {
-                        activity?.finish() // Go back to login
-                    },
-                    color = Color.Blue
+
+                        val intent = Intent(context, LoginActivity::class.java)
+                        context.startActivity(intent)
+                        // to destroy activity
+                        activity?.finish()
+                    }
+
                 )
 
             } else {

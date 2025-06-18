@@ -185,7 +185,14 @@ fun LoginBody() {
                     Text(text = "Remember me")
                 }
 
-                Text("Forget Password")
+                Text("Forget Password",
+                    modifier = Modifier.clickable {
+                        val intent = Intent(context, ResetPasswordActivity::class.java)
+                        context.startActivity(intent)
+                        // to destroy activity
+                        activity?.finish()
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
