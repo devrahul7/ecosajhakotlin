@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "371747351978",
+    "project_id": "ecosajha",
+    "storage_bucket": "ecosajha.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:371747351978:android:8a0a9edcfa27b4ac3acfd3",
+        "android_client_info": {
+          "package_name": "com.example.ecosajha"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA25QQ6F_qjqDTncJ1YefYMX-leJhoqZMw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

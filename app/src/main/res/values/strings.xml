@@ -4,4 +4,7 @@
     <string name="title_activity_login_acitivity">LoginAcitivity</string>
     <string name="title_activity_dashboard">DashboardActivity</string>
     <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_registration">RegistrationActivity</string>
+    <string name="title_activity_add_product">AddProduct</string>
+    <string name="title_activity_reset_password">ResetPassword</string>
 </resources>
