@@ -41,7 +41,9 @@ android {
 }
 
 dependencies {
-
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
+    implementation("com.cloudinary:cloudinary-android:2.1.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
