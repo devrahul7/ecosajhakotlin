@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -52,6 +53,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import com.example.ecosajha.R
+import com.example.ecosajha.repository.UserRepositoryImpl
+import com.example.inkspira_adigitalartportfolio.viewmodel.UserViewModel
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +73,8 @@ fun LoginBody() {
     var password by remember { mutableStateOf("") }
     var passwordVisibility by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
+    val repo = remember { UserRepositoryImpl() }
+    val userViewModel = remember { UserViewModel(repo) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope() // Fixed typo: was "couroutineScope"
@@ -89,7 +94,7 @@ fun LoginBody() {
             Text("Welcome to Ecosajha Recycle")
             Text("helping to keep nature clean")
             Spacer(modifier = Modifier.height(50.dp))
-
+0
             Image(
                 painter = painterResource(R.drawable.loginimg),
                 contentDescription = null,
@@ -191,38 +196,43 @@ fun LoginBody() {
                         context.startActivity(intent)
                         // to destroy activity
                         activity?.finish()
-                    }
-                )
+                    })
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = {
-                    if (username == "Rahul" && password == "password") {
-                        val intent = Intent(context, DashboardActivity::class.java)
-                        // to pass data to another activity
-                        intent.putExtra("username", username)
-                        intent.putExtra("password", password)
-                        context.startActivity(intent)
 
-                        Toast.makeText(
-                            context, "Login success",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        // snackbar
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Invalid login")
+                    userViewModel.login(username, password) {
+                            success, message ->
+
+                        if (success) {
+
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            val intent = Intent(context, DashboardActivity:: class.java)
+                            context.startActivity(intent)
+                            activity?.finish()
+                        } else {
+//                                Log.d("checkkkk", message)
+
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         }
+
                     }
+
+
                 },
+                shape = RoundedCornerShape(15.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(10.dp)
+                    .height(50.dp)
+                    .width(150.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Blue,
+                    contentColor = Color.White
+                )
             ) {
-                Text("Login")
+                Text(text = "Sign In")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -273,6 +283,3 @@ fun LoginBody() {
 fun LoginPreviewBody() {
     LoginBody()
 }
-
-
-

@@ -1,5 +1,4 @@
-package com.example.ecosajha.viewmodel
-
+package com.example.inkspira_adigitalartportfolio.viewmodel
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
