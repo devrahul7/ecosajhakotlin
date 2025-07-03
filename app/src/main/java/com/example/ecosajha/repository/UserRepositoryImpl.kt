@@ -84,13 +84,14 @@ class UserRepositoryImpl : UserRepository {
     ) {
         ref.child(userID).setValue(model).addOnCompleteListener {
             if(it.isSuccessful) {
-                callback(true, "User added")
+                callback(true, "Registration Succesfull")
             }
             else {
                 callback(false, "${it.exception?.message}")
             }
         }
     }
+
 
     override fun logout(callback: (Boolean, String) -> Unit) {
         try {

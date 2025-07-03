@@ -1,7 +1,5 @@
 package com.example.ecosajha.view
 
-
-
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -27,10 +25,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -60,6 +60,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.ecosajha.R
+import com.example.ecosajha.model.UserModel
+import com.example.ecosajha.repository.UserRepositoryImpl
+import com.example.inkspira_adigitalartportfolio.viewmodel.UserViewModel
 
 class RegistrationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,13 +76,18 @@ class RegistrationActivity : ComponentActivity() {
 
 @Composable
 fun RegistrationBody() {
+    val repo = remember { UserRepositoryImpl() }
+    val primaryColor = Color(0xFF4CAF50)
+    val userViewModel = remember { UserViewModel(repo) }
+
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisibility by remember { mutableStateOf(false) }
     var confirmPasswordVisibility by remember { mutableStateOf(false) }
+    var phoneNumber by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
     var agreeToTerms by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -117,7 +125,7 @@ fun RegistrationBody() {
             Spacer(modifier = Modifier.height(30.dp))
 
             Image(
-                painter = painterResource(R.drawable.loginimg), // Using same image as login
+                painter = painterResource(R.drawable.loginimg),
                 contentDescription = null,
                 modifier = Modifier
                     .height(180.dp)
@@ -172,28 +180,6 @@ fun RegistrationBody() {
 
             Spacer(modifier = Modifier.height(15.dp))
 
-            // Phone Number Field
-            OutlinedTextField(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp),
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone
-                ),
-                prefix = {
-                    Icon(Icons.Default.Phone, contentDescription = null)
-                },
-                placeholder = {
-                    Text("Phone Number")
-                },
-                value = phoneNumber,
-                onValueChange = { input ->
-                    phoneNumber = input
-                }
-            )
-
-            Spacer(modifier = Modifier.height(15.dp))
 
             // Password Field
             OutlinedTextField(
@@ -276,8 +262,54 @@ fun RegistrationBody() {
                     confirmPassword = input
                 }
             )
+            Spacer(modifier = Modifier.height(15.dp))
+
+            // Phone Number Field
+            OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone
+                ),
+                prefix = {
+                    Icon(Icons.Default.Phone, contentDescription = null)
+                },
+                placeholder = {
+                    Text("Phone Number")
+                },
+                value = phoneNumber,
+                onValueChange = { input ->
+                    phoneNumber = input
+                }
+            )
+
+
 
             Spacer(modifier = Modifier.height(15.dp))
+
+            // Address Field
+            OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(
+//                    keyboardType = KeyboardType.Address
+                ),
+                prefix = {
+                    Icon(Icons.Default.LocationOn, contentDescription = null)
+                },
+                placeholder = {
+                    Text("Enter Your Address")
+                },
+                value = address,
+                onValueChange = { input ->
+                    address = input
+                }
+            )
+
 
             // Terms and Conditions Checkbox
             Row(
@@ -307,58 +339,63 @@ fun RegistrationBody() {
             // Register Button
             Button(
                 onClick = {
-                    when {
-                        fullName.isEmpty() -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please enter your full name")
-                            }
-                        }
-                        email.isEmpty() -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please enter your email")
-                            }
-                        }
-                        phoneNumber.isEmpty() -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please enter your phone number")
-                            }
-                        }
-                        password.isEmpty() -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please enter a password")
-                            }
-                        }
-                        password != confirmPassword -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Passwords do not match")
-                            }
-                        }
-                        !agreeToTerms -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please agree to Terms and Conditions")
-                            }
-                        }
-                        else -> {
-                            // Registration successful
-                            Toast.makeText(
-                                context,
-                                "Registration successful! Please login.",
-                                Toast.LENGTH_LONG
-                            ).show()
+                    // Add validation here
+                    if (fullName.isBlank() || email.isBlank() || phoneNumber.isBlank() ||
+                        password.isBlank() || confirmPassword.isBlank() || address.isBlank()) {
+                        Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
 
-                            // Navigate back to login
-                            val intent = Intent(context, LoginActivity::class.java)
-                            context.startActivity(intent)
-                            activity?.finish()
+                    if (password != confirmPassword) {
+                        Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (!agreeToTerms) {
+                        Toast.makeText(context, "Please agree to terms and conditions", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    userViewModel.register(email, password) { success, message, userId ->
+                        if (success) {
+                            val userModel = UserModel(
+                                userId, fullName, email, password ,phoneNumber, address
+                            )
+                            userViewModel.addUserToDatabase(userId, userModel) { success, message ->
+                                if (success) {
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    // Navigate to login or main activity
+                                    val intent = Intent(context, LoginActivity::class.java)
+                                    context.startActivity(intent)
+                                    activity?.finish()
+                                } else {
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(10.dp)
+                    .padding(horizontal = 10.dp)
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryColor
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 4.dp,
+                    pressedElevation = 8.dp
+                )
             ) {
-                Text("Register")
+                Text(
+                    "Create Account",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
             }
 
             Spacer(modifier = Modifier.height(15.dp))

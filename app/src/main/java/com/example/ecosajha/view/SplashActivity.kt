@@ -80,7 +80,7 @@ fun SplashScreen() {
         ){
 
             Text(
-                text = "EcoSajha Recycle ", fontSize = 50.sp)
+                text = "EcoSajha Recycle ", fontSize = 45.sp)
 
             Image(
                 painterResource(R.drawable.logo),
@@ -90,7 +90,7 @@ fun SplashScreen() {
             Spacer(modifier = Modifier.height(10.dp))
             CircularProgressIndicator()
             Text(
-                text = "Welcome to EcoSajha ", fontSize = 30.sp)
+                text = "Welcome to EcoSajha ", fontSize = 32.sp)
 
         }
     }
