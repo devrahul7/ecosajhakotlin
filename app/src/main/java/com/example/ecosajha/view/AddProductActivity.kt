@@ -7,8 +7,10 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -40,34 +42,40 @@ import coil.compose.AsyncImage
 import com.example.ecosajha.R
 import com.example.ecosajha.model.ProductModel
 import com.example.ecosajha.repository.ProductRepositoryImpl
-import com.example.ecosajha.utils.ImageUtils
 import com.example.ecosajha.viewmodel.ProductViewModel
 
 class AddProductActivity : ComponentActivity() {
 
-    lateinit var imageUtils: ImageUtils
-    var selectedImageUri by mutableStateOf<Uri?>(null)
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        imageUtils = ImageUtils(this, this)
-        imageUtils.registerLaunchers { uri ->
-            selectedImageUri = uri
-        }
         setContent {
-//                RegBody(innerPaddingValues = PaddingValues(0.dp))
-            addProductBody(
-                selectedImageUri = selectedImageUri,
-                onPickImage = { imageUtils.launchImagePicker() }
-            )
+            AddProductScreen()
         }
     }
 }
 
 @Composable
-fun addProductBody(
+fun AddProductScreen() {
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Create image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
+
+    AddProductBody(
+        selectedImageUri = selectedImageUri,
+        onPickImage = {
+            imagePickerLauncher.launch("image/*")
+        }
+    )
+}
+
+@Composable
+fun AddProductBody(
     selectedImageUri: Uri?,
     onPickImage: () -> Unit
 ) {
@@ -83,11 +91,13 @@ fun addProductBody(
 
     Scaffold { padding ->
         LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxSize()
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
             item {
-
-
+                // Image Selection Box
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -109,101 +119,130 @@ fun addProductBody(
                         )
                     } else {
                         Image(
-                            painterResource(R.drawable.imageplaceholder),
-                            contentDescription = null,
+                            painter = painterResource(R.drawable.imageplaceholder),
+                            contentDescription = "Click to select image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     }
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Product Name Field
                 OutlinedTextField(
                     value = productName,
-                    onValueChange = {
-                        productName = it
-                    },
-                    placeholder = {
-                        Text("Product Name")
-                    },
+                    onValueChange = { productName = it },
+                    placeholder = { Text("Product Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(20.dp))
 
+                Spacer(modifier = Modifier.height(16.dp))
 
+                // Price Field
                 OutlinedTextField(
                     value = price,
-                    onValueChange = {
-                        price = it
-                    },
-                    placeholder = {
-                        Text("price")
-                    },
+                    onValueChange = { price = it },
+                    placeholder = { Text("Price") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(20.dp))
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Description Field
                 OutlinedTextField(
                     value = description,
-                    onValueChange = {
-                        description = it
-                    },
-                    placeholder = {
-                        Text("Description")
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                    onValueChange = { description = it },
+                    placeholder = { Text("Description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
                 )
-                Spacer(modifier = Modifier.height(20.dp))
 
+                Spacer(modifier = Modifier.height(24.dp))
 
+                // Add Product Button
                 Button(
                     onClick = {
-                        if (selectedImageUri != null) {
-                            viewModel.uploadImage(context, selectedImageUri) { imageUrl ->
-                                if (imageUrl != null) {
-                                    val model = ProductModel(
-                                        "",
-                                        productName,
-                                        price.toDouble(),
-                                        description,
-                                        imageUrl
-                                    )
-                                    viewModel.addProduct(model) { success, message ->
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                        if (success) activity?.finish()
+                        when {
+                            selectedImageUri == null -> {
+                                Toast.makeText(
+                                    context,
+                                    "Please select an image first",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            productName.isBlank() -> {
+                                Toast.makeText(
+                                    context,
+                                    "Please enter product name",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            price.isBlank() -> {
+                                Toast.makeText(
+                                    context,
+                                    "Please enter price",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            description.isBlank() -> {
+                                Toast.makeText(
+                                    context,
+                                    "Please enter description",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            else -> {
+                                try {
+                                    val priceValue = price.toDouble()
+                                    viewModel.uploadImage(context, selectedImageUri) { imageUrl ->
+                                        if (imageUrl != null) {
+                                            val model = ProductModel(
+                                                "",
+                                                productName,
+                                                priceValue,
+                                                description,
+                                                imageUrl
+                                            )
+                                            viewModel.addProduct(model) { success, message ->
+                                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                                if (success) activity?.finish()
+                                            }
+                                        } else {
+                                            Log.e("Upload Error", "Failed to upload image to Cloudinary")
+                                            Toast.makeText(
+                                                context,
+                                                "Failed to upload image. Please try again.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     }
-                                } else {
-                                    Log.e("Upload Error", "Failed to upload image to Cloudinary")
+                                } catch (e: NumberFormatException) {
+                                    Toast.makeText(
+                                        context,
+                                        "Please enter a valid price",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Please select an image first",
-                                Toast.LENGTH_SHORT
-                            ).show()
                         }
-
-
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
-                )
-                {
+                        .padding(vertical = 8.dp)
+                ) {
                     Text("Add Product")
                 }
-
-
             }
-
         }
     }
 }
 
-
 @Preview
 @Composable
-fun Prev() {
-    addProductBody(selectedImageUri = null, // or pass a mock Uri if needed
-        onPickImage = {})
+fun AddProductPreview() {
+    AddProductBody(
+        selectedImageUri = null,
+        onPickImage = {}
+    )
 }
