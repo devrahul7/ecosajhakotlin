@@ -132,7 +132,7 @@ fun AddProductBody(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Recycle",
                             tint = EcoGreen,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(82.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
