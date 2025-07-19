@@ -69,7 +69,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.ecosajha.R
 import com.example.ecosajha.repository.UserRepositoryImpl
-import com.example.inkspira_adigitalartportfolio.viewmodel.UserViewModel
+import com.example.ecosajha.viewmodel.UserViewModel
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
