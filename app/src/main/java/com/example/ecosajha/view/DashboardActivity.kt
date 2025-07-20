@@ -34,8 +34,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ecosajha.model.ProductModel
+import com.example.ecosajha.model.UserModel
 import com.example.ecosajha.repository.ProductRepositoryImpl
+import com.example.ecosajha.repository.UserRepositoryImpl
 import com.example.ecosajha.viewmodel.ProductViewModel
+import com.example.ecosajha.viewmodel.UserViewModel
+import com.google.firebase.auth.FirebaseUser
 
 // Define custom green color scheme for EcoSajha
 private val EcoGreen = Color(0xFF4CAF50)
@@ -216,7 +220,7 @@ fun EcoSajhaDashboard() {
                             }
                         }
                     )
-                    2 -> ProfileScreen()
+                    2 -> ProfileScreen() // Updated ProfileScreen
                 }
             }
         }
@@ -402,6 +406,320 @@ fun HomeScreen(
         }
     }
 }
+
+// ========== UPDATED PROFILE SCREEN ==========
+@Composable
+fun ProfileScreen() {
+    val context = LocalContext.current
+    val userRepo = remember { UserRepositoryImpl() } // Your existing implementation
+    val userViewModel = remember { UserViewModel(userRepo) }
+
+    val user = userViewModel.users.observeAsState(initial = null)
+    val currentUser = userViewModel.getCurrentUser()
+
+    // Get current user data when screen loads
+    LaunchedEffect(currentUser) {
+        currentUser?.uid?.let { userId ->
+            userViewModel.getUserByID(userId)
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        EcoBackground,
+                        Color(0xFFE8F5E8)
+                    )
+                )
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        item {
+            if (user.value == null) {
+                ProfileLoadingCard()
+            } else {
+                ProfileHeader(user = user.value, currentUser = currentUser)
+            }
+        }
+
+        item {
+            ProfileStatsSection()
+        }
+
+        item {
+            ProfileActions(
+                onEditProfile = {
+                    try {
+                        val intent = Intent(context, EditProfileActivity::class.java)
+                        user.value?.let { userData ->
+                            intent.putExtra("userID", userData.userID)
+                            intent.putExtra("fullName", userData.fullName)
+                            intent.putExtra("email", userData.email)
+                            intent.putExtra("phoneNumber", userData.phoneNumber)
+                            intent.putExtra("address", userData.address)
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Error opening edit profile", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onLogout = {
+                    userViewModel.logout { success, message ->
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        if (success) {
+                            // Navigate to login screen - replace with your LoginActivity
+                            try {
+                                val intent = Intent(context, LoginActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Please restart the app to login", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileLoadingCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator(
+                color = EcoGreen,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Loading profile...",
+                color = Color.Gray,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileHeader(user: UserModel?, currentUser: FirebaseUser?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Profile Picture
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(EcoGreen, EcoGreenDark)
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = user?.fullName?.take(2)?.uppercase() ?: "U",
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // User Name
+            Text(
+                text = user?.fullName ?: "Anonymous User",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = EcoGreenDark
+            )
+
+            // User Email
+            Text(
+                text = user?.email ?: currentUser?.email ?: "No email",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+
+            // Phone Number (if available)
+            if (!user?.phoneNumber.isNullOrEmpty()) {
+                Text(
+                    text = user?.phoneNumber ?: "",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+
+            // Address (if available)
+            if (!user?.address.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "📍 ${user?.address}",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Level Badge
+            Surface(
+                color = EcoGreenLight,
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🌱",
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Eco Warrior",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = EcoGreenDark
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Account Status
+            Text(
+                text = if (currentUser?.isEmailVerified == true) "✅ Verified Account" else "⚠️ Email not verified",
+                fontSize = 12.sp,
+                color = if (currentUser?.isEmailVerified == true) EcoGreen else Color.Green
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileStatsSection() {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(getProfileStats()) { stat ->
+            StatCard(stat = stat)
+        }
+    }
+}
+
+@Composable
+fun ProfileActions(
+    onEditProfile: () -> Unit,
+    onLogout: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Edit Profile Button
+        Button(
+            onClick = onEditProfile,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = EcoGreen
+            ),
+            shape = RoundedCornerShape(16.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Edit Profile",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
+
+        // Action Buttons Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = { /* Handle settings */ },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = EcoGreen
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Settings", fontSize = 12.sp)
+            }
+
+            OutlinedButton(
+                onClick = onLogout,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.Red
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Logout", fontSize = 12.sp)
+            }
+        }
+    }
+}
+// ========== END UPDATED PROFILE SCREEN ==========
 
 @Composable
 fun WelcomeCard() {
@@ -594,7 +912,6 @@ fun ProductCard(
     }
 }
 
-// Rest of the functions remain the same...
 @Composable
 fun EmptyStateSection() {
     Card(
@@ -771,7 +1088,6 @@ fun SearchResultCard(
     }
 }
 
-// Rest of the composables remain the same...
 @Composable
 fun StatsSection() {
     LazyVerticalGrid(
@@ -912,137 +1228,6 @@ fun NoResultsState(query: String) {
             color = Color.Gray,
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-fun ProfileScreen() {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        item {
-            ProfileHeader()
-        }
-
-        item {
-            ProfileStats()
-        }
-
-        item {
-            ProfileActions()
-        }
-    }
-}
-
-@Composable
-fun ProfileHeader() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(EcoGreen),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "👤",
-                    fontSize = 32.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "EcoWarrior",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = EcoGreenDark
-            )
-
-            Text(
-                text = "Making the world greener, one recycle at a time!",
-                fontSize = 14.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun ProfileStats() {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(120.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(getProfileStats()) { stat ->
-            StatCard(stat = stat)
-        }
-    }
-}
-
-@Composable
-fun ProfileActions() {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Button(
-            onClick = { /* Handle edit profile */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = EcoGreen
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Edit Profile", fontWeight = FontWeight.Bold)
-        }
-
-        OutlinedButton(
-            onClick = { /* Handle view statistics */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = EcoGreen
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.AccountBox,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("View Statistics", fontWeight = FontWeight.Bold)
-        }
     }
 }
 
