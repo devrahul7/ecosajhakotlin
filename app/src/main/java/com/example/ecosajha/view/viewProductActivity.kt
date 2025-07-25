@@ -26,6 +26,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -39,12 +40,22 @@ private val EcoGreenDark = Color(0xFF388E3C)
 private val EcoGreenLight = Color(0xFFC8E6C9)
 private val EcoBackground = Color(0xFFF1F8E9)
 
+// Sample Product Data Class for Preview
+data class SampleProduct(
+    val productName: String,
+    val price: Double,
+    val description: String,
+    val imageUrl: String? = null
+)
+
 class ViewProductActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ViewProductScreen()
+            MaterialTheme {
+                ViewProductScreen()
+            }
         }
     }
 }
@@ -102,31 +113,41 @@ fun ViewProductScreen() {
         return
     }
 
-    ViewProductBody(productID = productID)
+    ViewProductBody(
+        productID = productID,
+        productViewModel = ProductViewModel(ProductRepositoryImpl())
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ViewProductBody(productID: String) {
+fun ViewProductBody(
+    productID: String,
+    productViewModel: ProductViewModel? = null,
+    sampleProduct: SampleProduct? = null
+) {
     var isLoading by remember { mutableStateOf(true) }
-
-    val repo = remember { ProductRepositoryImpl() }
-    val viewModel = remember { ProductViewModel(repo) }
 
     val context = LocalContext.current
     val activity = context as? Activity
 
-    // Observe product data
-    val product = viewModel.products.observeAsState(initial = null)
+    // For real app usage
+    val product = productViewModel?.products?.observeAsState(initial = null)
 
-    // Load product data when component mounts
+    // Load product data when component mounts (only if not preview)
     LaunchedEffect(productID) {
-        viewModel.getProductByID(productID)
+        if (productViewModel != null) {
+            productViewModel.getProductByID(productID)
+        } else {
+            // For preview, simulate loading
+            kotlinx.coroutines.delay(1000)
+            isLoading = false
+        }
     }
 
     // Update loading state when product data is loaded
-    LaunchedEffect(product.value) {
-        if (product.value != null) {
+    LaunchedEffect(product?.value) {
+        if (product?.value != null || sampleProduct != null) {
             isLoading = false
         }
     }
@@ -154,9 +175,13 @@ fun ViewProductBody(productID: String) {
                 actions = {
                     IconButton(
                         onClick = {
-                            val intent = Intent(context, UpdateProductActivity::class.java)
-                            intent.putExtra("productID", productID)
-                            context.startActivity(intent)
+                            if (productViewModel != null) {
+                                val intent = Intent(context, UpdateProductActivity::class.java)
+                                intent.putExtra("productID", productID)
+                                context.startActivity(intent)
+                            } else {
+                                Toast.makeText(context, "Edit feature", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     ) {
                         Icon(
@@ -204,7 +229,10 @@ fun ViewProductBody(productID: String) {
                 }
             }
         } else {
-            product.value?.let { productData ->
+            // Use either real product data or sample data for preview
+            val productData = product?.value ?: sampleProduct
+
+            productData?.let { data ->
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -236,7 +264,7 @@ fun ViewProductBody(productID: String) {
                                     .clip(RoundedCornerShape(16.dp))
                             ) {
                                 // Get image URL from product data
-                                val imageUrl = getImageUrl(productData)
+                                val imageUrl = getImageUrl(data)
 
                                 if (!imageUrl.isNullOrEmpty()) {
                                     // Show actual uploaded image
@@ -310,7 +338,7 @@ fun ViewProductBody(productID: String) {
                             ) {
                                 // Product Name
                                 Text(
-                                    text = productData.productName ?: "Unknown Item",
+                                    text = getProductName(data),
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = EcoGreenDark
@@ -327,7 +355,7 @@ fun ViewProductBody(productID: String) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "${productData.price ?: 0}",
+                                        text = "${getProductPrice(data)}",
                                         fontSize = 36.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = EcoGreen
@@ -355,7 +383,7 @@ fun ViewProductBody(productID: String) {
                                 )
 
                                 Text(
-                                    text = productData.description ?: "No description available for this recyclable item.",
+                                    text = getProductDescription(data),
                                     fontSize = 16.sp,
                                     color = Color.Gray,
                                     lineHeight = 24.sp
@@ -443,9 +471,13 @@ fun ViewProductBody(productID: String) {
                             // Edit Button
                             Button(
                                 onClick = {
-                                    val intent = Intent(context, UpdateProductActivity::class.java)
-                                    intent.putExtra("productID", productID)
-                                    context.startActivity(intent)
+                                    if (productViewModel != null) {
+                                        val intent = Intent(context, UpdateProductActivity::class.java)
+                                        intent.putExtra("productID", productID)
+                                        context.startActivity(intent)
+                                    } else {
+                                        Toast.makeText(context, "Edit feature", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -511,32 +543,82 @@ fun ViewProductBody(productID: String) {
     }
 }
 
-// Helper function to safely get image URL from ProductModel
-@Composable
-fun getImageUrl(product: Any): String? {
-    return try {
-        // Try different possible field names for image URL
-        val fields = product.javaClass.declaredFields
-
-        for (field in fields) {
-            field.isAccessible = true
-            when (field.name.lowercase()) {
-                "imageurl", "image_url", "image", "imagelink", "imgurl" -> {
-                    val value = field.get(product) as? String
-                    if (!value.isNullOrEmpty()) {
-                        Log.d("ViewProduct", "Found image URL: $value")
-                        return value
-                    }
-                }
+// Helper functions to safely extract data from both real product and sample product
+fun getProductName(product: Any): String {
+    return when (product) {
+        is SampleProduct -> product.productName
+        else -> {
+            try {
+                val field = product.javaClass.getDeclaredField("productName")
+                field.isAccessible = true
+                field.get(product) as? String ?: "Unknown Item"
+            } catch (e: Exception) {
+                "Unknown Item"
             }
         }
+    }
+}
 
-        // If no image field found, log available fields for debugging
-        Log.d("ViewProduct", "Available fields: ${fields.map { it.name }}")
-        null
-    } catch (e: Exception) {
-        Log.e("ViewProduct", "Error getting image URL: ${e.message}")
-        null
+fun getProductPrice(product: Any): Double {
+    return when (product) {
+        is SampleProduct -> product.price
+        else -> {
+            try {
+                val field = product.javaClass.getDeclaredField("price")
+                field.isAccessible = true
+                field.get(product) as? Double ?: 0.0
+            } catch (e: Exception) {
+                0.0
+            }
+        }
+    }
+}
+
+fun getProductDescription(product: Any): String {
+    return when (product) {
+        is SampleProduct -> product.description
+        else -> {
+            try {
+                val field = product.javaClass.getDeclaredField("description")
+                field.isAccessible = true
+                field.get(product) as? String ?: "No description available for this recyclable item."
+            } catch (e: Exception) {
+                "No description available for this recyclable item."
+            }
+        }
+    }
+}
+
+// Helper function to safely get image URL from ProductModel
+fun getImageUrl(product: Any): String? {
+    return when (product) {
+        is SampleProduct -> product.imageUrl
+        else -> {
+            try {
+                // Try different possible field names for image URL
+                val fields = product.javaClass.declaredFields
+
+                for (field in fields) {
+                    field.isAccessible = true
+                    when (field.name.lowercase()) {
+                        "imageurl", "image_url", "image", "imagelink", "imgurl" -> {
+                            val value = field.get(product) as? String
+                            if (!value.isNullOrEmpty()) {
+                                Log.d("ViewProduct", "Found image URL: $value")
+                                return value
+                            }
+                        }
+                    }
+                }
+
+                // If no image field found, log available fields for debugging
+                Log.d("ViewProduct", "Available fields: ${fields.map { it.name }}")
+                null
+            } catch (e: Exception) {
+                Log.e("ViewProduct", "Error getting image URL: ${e.message}")
+                null
+            }
+        }
     }
 }
 
@@ -566,5 +648,134 @@ fun InfoItem(
             color = EcoGreenDark,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+// Preview Functions
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ViewProductScreenPreview() {
+    MaterialTheme {
+        ViewProductBody(
+            productID = "sample_product_id",
+            sampleProduct = SampleProduct(
+                productName = "Plastic Bottles",
+                price = 25.50,
+                description = "Clean plastic bottles suitable for recycling. These bottles help reduce environmental waste and can be processed into new products. Great for eco-conscious consumers looking to make a positive impact."
+            )
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true, name = "Loading State")
+@Composable
+fun ViewProductLoadingPreview() {
+    MaterialTheme {
+        Scaffold(
+            containerColor = EcoBackground,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Recyclable Item Details",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {}) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = EcoGreen
+                    )
+                )
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = EcoGreen,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading details...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = EcoGreenDark,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "No Product Found")
+@Composable
+fun ViewProductErrorPreview() {
+    MaterialTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Error",
+                        tint = Color.Red,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Recyclable Item Not Found",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = EcoGreenDark,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = {},
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = EcoGreen,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Go Back", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
     }
 }

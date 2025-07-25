@@ -22,9 +22,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ecosajha.model.UserModel
 import com.example.ecosajha.repository.UserRepositoryImpl
 import com.example.ecosajha.viewmodel.UserViewModel
 
@@ -39,7 +39,9 @@ class EditProfileActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            EditProfileScreen()
+            MaterialTheme {
+                EditProfileScreen()
+            }
         }
     }
 }
@@ -48,6 +50,10 @@ class EditProfileActivity : ComponentActivity() {
 fun EditProfileScreen() {
     val context = LocalContext.current
     val activity = context as? Activity
+
+    // Initialize dependencies here (not in preview)
+    val userRepo = remember { UserRepositoryImpl() }
+    val userViewModel = remember { UserViewModel(userRepo) }
 
     // Get user data from intent
     val userID = activity?.intent?.getStringExtra("userID") ?: ""
@@ -61,7 +67,8 @@ fun EditProfileScreen() {
         currentName = currentName,
         currentEmail = currentEmail,
         currentPhone = currentPhone,
-        currentAddress = currentAddress
+        currentAddress = currentAddress,
+        userViewModel = userViewModel
     )
 }
 
@@ -72,16 +79,14 @@ fun EditProfileBody(
     currentName: String,
     currentEmail: String,
     currentPhone: String,
-    currentAddress: String
+    currentAddress: String,
+    userViewModel: UserViewModel? = null
 ) {
     var fullName by remember { mutableStateOf(currentName) }
     var email by remember { mutableStateOf(currentEmail) }
     var phoneNumber by remember { mutableStateOf(currentPhone) }
     var address by remember { mutableStateOf(currentAddress) }
     var isUpdating by remember { mutableStateOf(false) }
-
-    val userRepo = remember { UserRepositoryImpl() }
-    val userViewModel = remember { UserViewModel(userRepo) }
 
     val context = LocalContext.current
     val activity = context as? Activity
@@ -299,22 +304,27 @@ fun EditProfileBody(
                                 Toast.makeText(context, "Please enter your email", Toast.LENGTH_SHORT).show()
                             }
                             else -> {
-                                isUpdating = true
+                                if (userViewModel != null) {
+                                    isUpdating = true
 
-                                // Create update data map
-                                val updateData = mutableMapOf<String, Any?>(
-                                    "fullName" to fullName,
-                                    "email" to email,
-                                    "phoneNumber" to phoneNumber,
-                                    "address" to address
-                                )
+                                    // Create update data map
+                                    val updateData = mutableMapOf<String, Any?>(
+                                        "fullName" to fullName,
+                                        "email" to email,
+                                        "phoneNumber" to phoneNumber,
+                                        "address" to address
+                                    )
 
-                                userViewModel.updateProfile(userID, updateData) { success, message ->
-                                    isUpdating = false
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    if (success) {
-                                        activity?.finish()
+                                    userViewModel.updateProfile(userID, updateData) { success, message ->
+                                        isUpdating = false
+                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                        if (success) {
+                                            activity?.finish()
+                                        }
                                     }
+                                } else {
+                                    // For preview mode
+                                    Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -356,5 +366,50 @@ fun EditProfileBody(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+}
+
+// Preview Functions
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun EditProfileScreenPreview() {
+    MaterialTheme {
+        EditProfileBody(
+            userID = "sample_user_id",
+            currentName = "Sita Shah",
+            currentEmail = "sita@gmail.com",
+            currentPhone = "+977-9742869215",
+            currentAddress = "Kathmandu, Nepal"
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "Empty Fields")
+@Composable
+fun EditProfileScreenEmptyPreview() {
+    MaterialTheme {
+        EditProfileBody(
+            userID = "sample_user_id",
+            currentName = "",
+            currentEmail = "",
+            currentPhone = "",
+            currentAddress = ""
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "Dark Theme")
+@Composable
+fun EditProfileScreenDarkPreview() {
+    MaterialTheme(
+        colorScheme = darkColorScheme()
+    ) {
+        EditProfileBody(
+            userID = "sample_user_id",
+            currentName = "Rohit Shah",
+            currentEmail = "rohitshah@gmail.com",
+            currentPhone = "+977-9863481707",
+            currentAddress = "Pokhara, Nepal"
+        )
     }
 }

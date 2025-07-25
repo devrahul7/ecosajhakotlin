@@ -31,8 +31,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.example.ecosajha.model.ProductModel
 import com.example.ecosajha.model.UserModel
 import com.example.ecosajha.repository.ProductRepositoryImpl
@@ -1146,6 +1148,14 @@ fun StatCard(stat: StatData) {
 
 @Composable
 fun LoadingSection() {
+    var showLoadingText by remember { mutableStateOf(true) }
+
+    // After 3 seconds, change to "Please add recycleable items"
+    LaunchedEffect(Unit) {
+        delay(3000) // 3 seconds delay
+        showLoadingText = false
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1158,17 +1168,38 @@ fun LoadingSection() {
                 .padding(40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            CircularProgressIndicator(
-                color = EcoGreen,
-                strokeWidth = 3.dp,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Loading recyclable items...",
-                color = Color.Gray,
-                fontSize = 14.sp
-            )
+            if (showLoadingText) {
+                CircularProgressIndicator(
+                    color = EcoGreen,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Loading recyclable items...",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            } else {
+                Text(
+                    text = "📦",
+                    fontSize = 48.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Please add recycleable items",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoGreenDark,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Tap the + button to add your recyclable items",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -1256,3 +1287,17 @@ fun getProfileStats(): List<StatData> = listOf(
     StatData("🏆", "15", "Badges"),
     StatData("👥", "48", "Referrals")
 )
+
+@Preview(showBackground = true)
+@Composable
+fun EmptyHomePreview() {
+    EcoSajhaTheme {
+        HomeScreen(
+            products = emptyList(),
+            loading = false,
+            onViewProduct = {},
+            onEditProduct = {},
+            onDeleteProduct = {}
+        )
+    }
+}
