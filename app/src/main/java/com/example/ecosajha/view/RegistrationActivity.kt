@@ -359,7 +359,7 @@ fun RegistrationBody() {
                     userViewModel.register(email, password) { success, message, userId ->
                         if (success) {
                             val userModel = UserModel(
-                                userId, fullName, email, password ,phoneNumber, address
+                                userId, fullName, email, "" ,phoneNumber, address
                             )
                             userViewModel.addUserToDatabase(userId, userModel) { success, message ->
                                 if (success) {
