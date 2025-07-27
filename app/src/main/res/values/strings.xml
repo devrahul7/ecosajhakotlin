@@ -10,4 +10,5 @@
     <string name="title_activity_update_product">UpdateProductActivity</string>
     <string name="title_activity_view_product">viewProductActivity</string>
     <string name="title_activity_edit_profile">EditProfileActivity</string>
+    <string name="title_activity_main">MainActivity</string>
 </resources>
