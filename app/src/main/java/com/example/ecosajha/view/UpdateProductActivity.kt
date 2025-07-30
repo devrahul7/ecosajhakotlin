@@ -6,19 +6,24 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -26,23 +31,67 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.example.ecosajha.repository.ProductRepositoryImpl
 import com.example.ecosajha.viewmodel.ProductViewModel
 
-// Define custom green color scheme for EcoSajha
-private val EcoGreen = Color(0xFF4CAF50)
-private val EcoGreenDark = Color(0xFF388E3C)
-private val EcoGreenLight = Color(0xFFC8E6C9)
-private val EcoBackground = Color(0xFFF1F8E9)
+// Modern vibrant color palette - MATCHING AddProduct & ViewProduct
+private val VibrantGreen = Color(0xFF00E676)
+private val DeepGreen = Color(0xFF00C853)
+private val LightGreen = Color(0xFF69F0AE)
+private val AccentBlue = Color(0xFF00B0FF)
+private val AccentPurple = Color(0xFF7C4DFF)
+private val AccentOrange = Color(0xFFFF6D00)
+private val AccentPink = Color(0xFFE91E63)
+private val AccentYellow = Color(0xFFFFD600)
+private val BackgroundGradient = listOf(Color(0xFFF0FFF0), Color(0xFFE8F5E8), Color(0xFFF3E5F5))
+private val SurfaceWhite = Color(0xFFFFFFFF)
 
 class UpdateProductActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            UpdateProductScreen()
+            MaterialTheme {
+                UpdateProductScreen()
+            }
         }
     }
+}
+
+@Composable
+fun FloatingUpdateIcon() {
+    val infiniteTransition = rememberInfiniteTransition(label = "floating_icon")
+
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Icon(
+        imageVector = Icons.Default.Edit,
+        contentDescription = "Update",
+        tint = VibrantGreen.copy(alpha = 0.7f),
+        modifier = Modifier
+            .size(24.dp)
+            .rotate(rotation)
+            .scale(scale)
+    )
 }
 
 @Composable
@@ -52,370 +101,636 @@ fun UpdateProductScreen() {
     val productID: String? = activity?.intent?.getStringExtra("productID")
 
     if (productID.isNullOrEmpty()) {
-        // Handle case where productID is not provided
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Error",
-                        tint = Color.Red,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Recyclable Item ID not found",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = EcoGreenDark,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = { activity?.finish() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = EcoGreen,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Go Back", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
+        ModernErrorState { activity?.finish() }
         return
     }
 
     UpdateProductBody(productID = productID)
 }
 
+@Composable
+fun ModernErrorState(onGoBack: () -> Unit) {
+    var isVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(300)
+        isVisible = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        AccentPink.copy(alpha = 0.15f),
+                        AccentPurple.copy(alpha = 0.05f),
+                        Color.Transparent
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = scaleIn(
+                animationSpec = tween(800, easing = FastOutSlowInEasing)
+            ) + fadeIn()
+        ) {
+            Card(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .shadow(16.dp, RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("🔍", fontSize = 48.sp)
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Oops! Item Not Found",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = AccentPink,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = "The recyclable item ID is missing or invalid",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = onGoBack,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(AccentPink, AccentPurple)
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .shadow(8.dp, RoundedCornerShape(16.dp)),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text("Go Back", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpdateProductBody(productID: String) {
-    // State for form fields
     var recyclableItemName by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     var isUpdating by remember { mutableStateOf(false) }
+    var isContentVisible by remember { mutableStateOf(false) }
 
     val repo = remember { ProductRepositoryImpl() }
     val viewModel = remember { ProductViewModel(repo) }
-
     val context = LocalContext.current
     val activity = context as? Activity
 
-    // Observe product data
     val product = viewModel.products.observeAsState(initial = null)
 
-    // Load product data when component mounts
     LaunchedEffect(productID) {
         viewModel.getProductByID(productID)
     }
 
-    // Update form fields when product data is loaded
     LaunchedEffect(product.value) {
         product.value?.let { productData ->
             recyclableItemName = productData.productName ?: ""
             description = productData.description ?: ""
             price = productData.price?.toString() ?: ""
             isLoading = false
+            delay(300)
+            isContentVisible = true
         }
     }
 
     Scaffold(
-        containerColor = EcoBackground,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Update Recyclable Item",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FloatingUpdateIcon()
+                        AnimatedVisibility(
+                            visible = !isLoading,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(800)
+                            )
+                        ) {
+                            Text(
+                                "✏️ Update Item",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 18.sp
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {  // 👈 BACK ARROW ADDED
+                    IconButton(onClick = { activity?.finish() }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = EcoGreen
-                )
+                    containerColor = Color.Transparent
+                ),
+                modifier = Modifier
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(VibrantGreen, DeepGreen, AccentBlue)
+                        )
+                    )
+                    .shadow(8.dp)
             )
         }
     ) { padding ->
-        if (isLoading) {
-            // Loading state
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(BackgroundGradient)
+                )
+        ) {
+            if (isLoading) {
+                ModernLoadingState(modifier = Modifier.padding(padding))
+            } else {
+                AnimatedVisibility(
+                    visible = isContentVisible,
+                    enter = fadeIn(tween(1000))
                 ) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    LazyColumn(
+                        modifier = Modifier
+                            .padding(padding)
+                            .fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        CircularProgressIndicator(
-                            color = EcoGreen,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Loading recyclable item details...",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = EcoGreenDark,
-                            textAlign = TextAlign.Center
-                        )
+                        // Header Card
+                        item {
+                            ModernHeaderCard()
+                        }
+
+                        // Form Card
+                        item {
+                            ModernFormCard(
+                                recyclableItemName = recyclableItemName,
+                                price = price,
+                                description = description,
+                                isUpdating = isUpdating,
+                                onNameChange = { recyclableItemName = it },
+                                onPriceChange = { price = it },
+                                onDescriptionChange = { description = it }
+                            )
+                        }
+
+                        // Update Button
+                        item {
+                            ModernUpdateButton(
+                                isUpdating = isUpdating,
+                                onClick = {
+                                    when {
+                                        recyclableItemName.isBlank() -> {
+                                            Toast.makeText(context, "Please enter recyclable item name", Toast.LENGTH_SHORT).show()
+                                        }
+                                        price.isBlank() -> {
+                                            Toast.makeText(context, "Please enter price", Toast.LENGTH_SHORT).show()
+                                        }
+                                        description.isBlank() -> {
+                                            Toast.makeText(context, "Please enter description", Toast.LENGTH_SHORT).show()
+                                        }
+                                        else -> {
+                                            try {
+                                                val priceValue = price.toDouble()
+                                                if (priceValue <= 0) {
+                                                    Toast.makeText(context, "Price must be greater than 0", Toast.LENGTH_SHORT).show()
+                                                    return@ModernUpdateButton
+                                                }
+
+                                                isUpdating = true
+
+                                                val updateData = mutableMapOf<String, Any?>().apply {
+                                                    put("description", description)
+                                                    put("price", priceValue)
+                                                    put("productName", recyclableItemName)
+                                                    put("productID", productID)
+                                                }
+
+                                                viewModel.updateProduct(productID, updateData) { success, message ->
+                                                    isUpdating = false
+                                                    if (success) {
+                                                        Toast.makeText(context, "✅ Recyclable item updated successfully!", Toast.LENGTH_SHORT).show()
+                                                        activity?.finish()
+                                                    } else {
+                                                        Toast.makeText(context, "❌ ${message ?: "Failed to update recyclable item"}", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            } catch (e: NumberFormatException) {
+                                                Toast.makeText(context, "Please enter a valid price", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
-        } else {
-            // Main content
-            LazyColumn(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+        }
+    }
+}
+
+@Composable
+fun ModernLoadingState(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
+        label = "rotation"
+    )
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.shadow(8.dp, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                item {
-                    // Header Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Update",
-                                tint = EcoGreen,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Update your recyclable item details",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = EcoGreenDark,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    // Form Fields Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Recyclable Item Name Field
-                            OutlinedTextField(
-                                value = recyclableItemName,
-                                onValueChange = { recyclableItemName = it },
-                                label = { Text("Recyclable Item Name") },
-                                placeholder = { Text("e.g., Plastic Bottles, Paper, Metal Cans") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = "Item Name",
-                                        tint = EcoGreen
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isUpdating,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = EcoGreen,
-                                    focusedLabelColor = EcoGreen,
-                                    cursorColor = EcoGreen
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            // Price Field
-                            OutlinedTextField(
-                                value = price,
-                                onValueChange = { price = it },
-                                label = { Text("Price (₹)") },
-                                placeholder = { Text("Enter price per unit/kg") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = "Price",
-                                        tint = EcoGreen
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isUpdating,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = EcoGreen,
-                                    focusedLabelColor = EcoGreen,
-                                    cursorColor = EcoGreen
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            // Description Field
-                            OutlinedTextField(
-                                value = description,
-                                onValueChange = { description = it },
-                                label = { Text("Description") },
-                                placeholder = { Text("Describe condition, quantity, pickup details...") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = "Description",
-                                        tint = EcoGreen
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = 4,
-                                enabled = !isUpdating,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = EcoGreen,
-                                    focusedLabelColor = EcoGreen,
-                                    cursorColor = EcoGreen
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    // Update Button
-                    Button(
-                        onClick = {
-                            // Validate inputs
-                            when {
-                                recyclableItemName.isBlank() -> {
-                                    Toast.makeText(
-                                        context,
-                                        "Please enter recyclable item name",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                price.isBlank() -> {
-                                    Toast.makeText(
-                                        context,
-                                        "Please enter price",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                description.isBlank() -> {
-                                    Toast.makeText(
-                                        context,
-                                        "Please enter description",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                else -> {
-                                    try {
-                                        val priceValue = price.toDouble()
-                                        if (priceValue <= 0) {
-                                            Toast.makeText(
-                                                context,
-                                                "Price must be greater than 0",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            return@Button
-                                        }
-
-                                        isUpdating = true
-
-                                        val updateData = mutableMapOf<String, Any?>().apply {
-                                            put("description", description)
-                                            put("price", priceValue)
-                                            put("productName", recyclableItemName)
-                                            put("productID", productID)
-                                        }
-
-                                        viewModel.updateProduct(
-                                            productID,
-                                            updateData
-                                        ) { success, message ->
-                                            isUpdating = false
-                                            if (success) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Recyclable item updated successfully",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                                activity?.finish()
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    message ?: "Failed to update recyclable item",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    } catch (e: NumberFormatException) {
-                                        Toast.makeText(
-                                            context,
-                                            "Please enter a valid price",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        enabled = !isUpdating,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = EcoGreen,
-                            contentColor = Color.White
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(VibrantGreen.copy(0.3f), Color.Transparent)
+                            ),
+                            shape = CircleShape
                         ),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = VibrantGreen,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .rotate(rotation)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "🔄 Loading details...",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = DeepGreen,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    "Getting recyclable item ready for editing",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ModernHeaderCard() {
+    val infiniteTransition = rememberInfiniteTransition(label = "header")
+
+    val backgroundShift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(8000, easing = LinearEasing),
+            RepeatMode.Reverse
+        ),
+        label = "background_shift"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            VibrantGreen.copy(alpha = 0.9f),
+                            AccentBlue.copy(alpha = 0.8f),
+                            AccentPurple.copy(alpha = 0.7f)
+                        ),
+                        start = androidx.compose.ui.geometry.Offset(
+                            0f + backgroundShift * 200f,
+                            0f
+                        ),
+                        end = androidx.compose.ui.geometry.Offset(
+                            1000f + backgroundShift * 200f,
+                            1000f
+                        )
+                    )
+                )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(36.dp))
+                    Icon(Icons.Default.Favorite, null, tint = AccentPink, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Star, null, tint = AccentYellow, modifier = Modifier.size(28.dp))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "🔄 Update Item Details",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    "Modify your recyclable item information ♻️",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(0.9f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ModernFormCard(
+    recyclableItemName: String,
+    price: String,
+    description: String,
+    isUpdating: Boolean,
+    onNameChange: (String) -> Unit,
+    onPriceChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(text = "📝", fontSize = 24.sp)
+                Text(
+                    "Edit Item Information",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = DeepGreen,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Item Name Field
+            OutlinedTextField(
+                value = recyclableItemName,
+                onValueChange = onNameChange,
+                label = { Text("♻️ Recyclable Item Name", fontSize = 14.sp) },
+                placeholder = { Text("e.g., Plastic Bottles, Paper, Metal Cans", fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Eco, null, tint = VibrantGreen) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isUpdating,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = VibrantGreen,
+                    focusedLabelColor = VibrantGreen,
+                    cursorColor = VibrantGreen,
+                    focusedLeadingIconColor = VibrantGreen
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            // Price Field
+            OutlinedTextField(
+                value = price,
+                onValueChange = onPriceChange,
+                label = { Text("💰 Price (₹)", fontSize = 14.sp) },
+                placeholder = { Text("Enter price per unit/kg", fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.CurrencyRupee, null, tint = AccentOrange) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isUpdating,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentOrange,
+                    focusedLabelColor = AccentOrange,
+                    cursorColor = AccentOrange,
+                    focusedLeadingIconColor = AccentOrange
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            // Description Field
+            OutlinedTextField(
+                value = description,
+                onValueChange = onDescriptionChange,
+                label = { Text("📋 Description", fontSize = 14.sp) },
+                placeholder = { Text("Describe condition, quantity, pickup details...", fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Info, null, tint = AccentPurple) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isUpdating,
+                minLines = 3,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentPurple,
+                    focusedLabelColor = AccentPurple,
+                    cursorColor = AccentPurple,
+                    focusedLeadingIconColor = AccentPurple
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ModernUpdateButton(
+    isUpdating: Boolean,
+    onClick: () -> Unit
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    val infiniteTransition = rememberInfiniteTransition(label = "button")
+
+    val gradientShift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(3000, easing = LinearEasing),
+            RepeatMode.Reverse
+        ),
+        label = "gradient"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy),
+        label = "scale"
+    )
+
+    Button(
+        onClick = {
+            isPressed = true
+            onClick()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .scale(scale)
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        enabled = !isUpdating,
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        shape = RoundedCornerShape(16.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        LaunchedEffect(isPressed) {
+            if (isPressed) {
+                delay(200)
+                isPressed = false
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = if (isUpdating) {
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Gray.copy(alpha = 0.7f),
+                                Color.Gray.copy(alpha = 0.5f)
+                            )
+                        )
+                    } else {
+                        Brush.linearGradient(
+                            colors = listOf(
+                                VibrantGreen,
+                                AccentBlue,
+                                AccentPurple,
+                                AccentOrange
+                            ),
+                            start = androidx.compose.ui.geometry.Offset(
+                                gradientShift * 1000f,
+                                0f
+                            ),
+                            end = androidx.compose.ui.geometry.Offset(
+                                1000f + gradientShift * 1000f,
+                                1000f
+                            )
+                        )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isUpdating) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.3f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (isUpdating) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Update",
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Text(
-                            if (isUpdating) "Updating..." else "Update Recyclable Item",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.3f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color.White
                         )
                     }
                 }
 
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    if (isUpdating) "🔄 Updating..." else "🚀 Update Recyclable Item",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
@@ -424,5 +739,7 @@ fun UpdateProductBody(productID: String) {
 @Preview(showBackground = true)
 @Composable
 fun UpdateProductPreview() {
-    UpdateProductBody(productID = "sample_id")
+    MaterialTheme {
+        UpdateProductBody(productID = "sample_id")
+    }
 }

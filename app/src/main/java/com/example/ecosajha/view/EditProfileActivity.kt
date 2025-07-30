@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,21 +20,32 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.example.ecosajha.repository.UserRepositoryImpl
 import com.example.ecosajha.viewmodel.UserViewModel
 
-// Use the same color scheme
-private val EcoGreen = Color(0xFF4CAF50)
-private val EcoGreenDark = Color(0xFF388E3C)
-private val EcoGreenLight = Color(0xFFC8E6C9)
-private val EcoBackground = Color(0xFFF1F8E9)
+// Modern vibrant color palette
+private val VibrantGreen = Color(0xFF00E676)
+private val DeepGreen = Color(0xFF00C853)
+private val LightGreen = Color(0xFF69F0AE)
+private val AccentBlue = Color(0xFF00B0FF)
+private val AccentPurple = Color(0xFF7C4DFF)
+private val AccentOrange = Color(0xFFFF6D00)
+private val AccentPink = Color(0xFFE91E63)
+private val AccentYellow = Color(0xFFFFD600)
+private val BackgroundGradient = listOf(Color(0xFFF0FFF0), Color(0xFFE8F5E8), Color(0xFFF3E5F5))
+private val SurfaceWhite = Color(0xFFFFFFFF)
 
 class EditProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,15 +60,119 @@ class EditProfileActivity : ComponentActivity() {
 }
 
 @Composable
+fun FloatingUserIcon() {
+    val infiniteTransition = rememberInfiniteTransition()
+
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(15000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Icon(
+        imageVector = Icons.Default.AccountCircle,
+        contentDescription = "Floating User",
+        tint = VibrantGreen.copy(alpha = 0.7f),
+        modifier = Modifier
+            .size(24.dp)
+            .rotate(rotation)
+            .scale(scale)
+    )
+}
+
+@Composable
+fun AnimatedProfileAvatar(name: String) {
+    val infiniteTransition = rememberInfiniteTransition()
+
+    val borderRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .scale(scale),
+        contentAlignment = Alignment.Center
+    ) {
+        // Animated border
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .rotate(borderRotation)
+                .background(
+                    brush = Brush.sweepGradient(
+                        colors = listOf(
+                            VibrantGreen,
+                            AccentBlue,
+                            AccentPurple,
+                            AccentOrange,
+                            AccentPink,
+                            VibrantGreen
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+
+        // Inner avatar
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            VibrantGreen.copy(alpha = 0.9f),
+                            DeepGreen
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = name.take(2).uppercase().ifEmpty { "👤" },
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
 fun EditProfileScreen() {
     val context = LocalContext.current
     val activity = context as? Activity
 
-    // Initialize dependencies here (not in preview)
     val userRepo = remember { UserRepositoryImpl() }
     val userViewModel = remember { UserViewModel(userRepo) }
 
-    // Get user data from intent
     val userID = activity?.intent?.getStringExtra("userID") ?: ""
     val currentName = activity?.intent?.getStringExtra("fullName") ?: ""
     val currentEmail = activity?.intent?.getStringExtra("email") ?: ""
@@ -87,20 +204,42 @@ fun EditProfileBody(
     var phoneNumber by remember { mutableStateOf(currentPhone) }
     var address by remember { mutableStateOf(currentAddress) }
     var isUpdating by remember { mutableStateOf(false) }
+    var isVisible by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val activity = context as? Activity
 
+    // Animate content appearance
+    LaunchedEffect(Unit) {
+        delay(300)
+        isVisible = true
+    }
+
     Scaffold(
-        containerColor = EcoBackground,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Edit Profile",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FloatingUserIcon()
+                        AnimatedVisibility(
+                            visible = isVisible,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(800, easing = FastOutSlowInEasing)
+                            )
+                        ) {
+                            Text(
+                                "✏️ Edit Profile",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 18.sp
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { activity?.finish() }) {
@@ -112,258 +251,450 @@ fun EditProfileBody(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = EcoGreen
-                )
+                    containerColor = Color.Transparent
+                ),
+                modifier = Modifier
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(VibrantGreen, AccentBlue, AccentPurple)
+                        )
+                    )
+                    .shadow(8.dp)
             )
         }
     ) { padding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            EcoBackground,
-                            Color(0xFFE8F5E8)
-                        )
-                    )
-                ),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(16.dp)
+                    brush = Brush.verticalGradient(BackgroundGradient)
+                )
         ) {
-            item {
-                // Profile Picture Section
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                    shape = RoundedCornerShape(20.dp)
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(
+                    animationSpec = tween(1000, easing = FastOutSlowInEasing)
+                )
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(EcoGreen, EcoGreenDark)
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
+                    item {
+                        // Animated Profile Picture Section
+                        AnimatedVisibility(
+                            visible = isVisible,
+                            enter = slideInVertically(
+                                initialOffsetY = { -it },
+                                animationSpec = tween(800, delayMillis = 200)
+                            )
                         ) {
-                            Text(
-                                text = fullName.take(2).uppercase().ifEmpty { "U" },
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                            ProfilePictureCard(fullName = fullName)
+                        }
+                    }
+
+                    item {
+                        // Animated Edit Form
+                        AnimatedVisibility(
+                            visible = isVisible,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(800, delayMillis = 400)
+                            )
+                        ) {
+                            EditFormCard(
+                                fullName = fullName,
+                                email = email,
+                                phoneNumber = phoneNumber,
+                                address = address,
+                                isUpdating = isUpdating,
+                                onNameChange = { fullName = it },
+                                onEmailChange = { email = it },
+                                onPhoneChange = { phoneNumber = it },
+                                onAddressChange = { address = it }
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(
-                            text = "Profile Picture",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = EcoGreenDark
-                        )
                     }
-                }
-            }
 
-            item {
-                // Edit Form
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = "Personal Information",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = EcoGreenDark
-                        )
+                    item {
+                        // Animated Save Button
+                        AnimatedVisibility(
+                            visible = isVisible,
+                            enter = slideInVertically(
+                                initialOffsetY = { it },
+                                animationSpec = tween(800, delayMillis = 600)
+                            )
+                        ) {
+                            SaveButton(
+                                isUpdating = isUpdating,
+                                onClick = {
+                                    when {
+                                        fullName.isBlank() -> {
+                                            Toast.makeText(context, "Please enter your full name", Toast.LENGTH_SHORT).show()
+                                        }
+                                        email.isBlank() -> {
+                                            Toast.makeText(context, "Please enter your email", Toast.LENGTH_SHORT).show()
+                                        }
+                                        else -> {
+                                            if (userViewModel != null) {
+                                                isUpdating = true
 
-                        // Full Name Field
-                        OutlinedTextField(
-                            value = fullName,
-                            onValueChange = { fullName = it },
-                            label = { Text("Full Name") },
-                            placeholder = { Text("Enter your full name") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Name",
-                                    tint = EcoGreen
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isUpdating,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = EcoGreen,
-                                focusedLabelColor = EcoGreen,
-                                cursorColor = EcoGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                                                val updateData = mutableMapOf<String, Any?>(
+                                                    "fullName" to fullName,
+                                                    "email" to email,
+                                                    "phoneNumber" to phoneNumber,
+                                                    "address" to address
+                                                )
 
-                        // Email Field
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("Email Address") },
-                            placeholder = { Text("Enter your email") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Email,
-                                    contentDescription = "Email",
-                                    tint = EcoGreen
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isUpdating,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = EcoGreen,
-                                focusedLabelColor = EcoGreen,
-                                cursorColor = EcoGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        // Phone Number Field
-                        OutlinedTextField(
-                            value = phoneNumber,
-                            onValueChange = { phoneNumber = it },
-                            label = { Text("Phone Number") },
-                            placeholder = { Text("Enter your phone number") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Phone,
-                                    contentDescription = "Phone",
-                                    tint = EcoGreen
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isUpdating,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = EcoGreen,
-                                focusedLabelColor = EcoGreen,
-                                cursorColor = EcoGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        // Address Field
-                        OutlinedTextField(
-                            value = address,
-                            onValueChange = { address = it },
-                            label = { Text("Address") },
-                            placeholder = { Text("Enter your address") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = "Address",
-                                    tint = EcoGreen
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 2,
-                            enabled = !isUpdating,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = EcoGreen,
-                                focusedLabelColor = EcoGreen,
-                                cursorColor = EcoGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    }
-                }
-            }
-
-            item {
-                // Save Button
-                Button(
-                    onClick = {
-                        when {
-                            fullName.isBlank() -> {
-                                Toast.makeText(context, "Please enter your full name", Toast.LENGTH_SHORT).show()
-                            }
-                            email.isBlank() -> {
-                                Toast.makeText(context, "Please enter your email", Toast.LENGTH_SHORT).show()
-                            }
-                            else -> {
-                                if (userViewModel != null) {
-                                    isUpdating = true
-
-                                    // Create update data map
-                                    val updateData = mutableMapOf<String, Any?>(
-                                        "fullName" to fullName,
-                                        "email" to email,
-                                        "phoneNumber" to phoneNumber,
-                                        "address" to address
-                                    )
-
-                                    userViewModel.updateProfile(userID, updateData) { success, message ->
-                                        isUpdating = false
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                        if (success) {
-                                            activity?.finish()
+                                                userViewModel.updateProfile(userID, updateData) { success, message ->
+                                                    isUpdating = false
+                                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                    if (success) {
+                                                        activity?.finish()
+                                                    }
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "✅ Profile updated successfully!", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     }
-                                } else {
-                                    // For preview mode
-                                    Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
                                 }
-                            }
+                            )
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = !isUpdating,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = EcoGreen,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-                ) {
-                    if (isUpdating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfilePictureCard(fullName: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            VibrantGreen.copy(alpha = 0.05f)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    )
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                AnimatedProfileAvatar(name = fullName)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(text = "📸", fontSize = 20.sp)
+                    Text(
+                        text = "Profile Picture",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DeepGreen
+                    )
+                }
+
+                Text(
+                    text = "Your profile avatar is generated from your name",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EditFormCard(
+    fullName: String,
+    email: String,
+    phoneNumber: String,
+    address: String,
+    isUpdating: Boolean,
+    onNameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onAddressChange: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(text = "👤", fontSize = 24.sp)
+                Text(
+                    text = "Personal Information",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepGreen
+                )
+            }
+
+            // Full Name Field
+            AnimatedTextField(
+                value = fullName,
+                onValueChange = onNameChange,
+                label = "👤 Full Name",
+                placeholder = "Enter your full name",
+                icon = Icons.Default.Person,
+                iconColor = VibrantGreen,
+                enabled = !isUpdating,
+                delay = 0
+            )
+
+            // Email Field
+            AnimatedTextField(
+                value = email,
+                onValueChange = onEmailChange,
+                label = "📧 Email Address",
+                placeholder = "Enter your email address",
+                icon = Icons.Default.Email,
+                iconColor = AccentBlue,
+                enabled = !isUpdating,
+                delay = 200
+            )
+
+            // Phone Number Field
+            AnimatedTextField(
+                value = phoneNumber,
+                onValueChange = onPhoneChange,
+                label = "📱 Phone Number",
+                placeholder = "Enter your phone number",
+                icon = Icons.Default.Phone,
+                iconColor = AccentOrange,
+                enabled = !isUpdating,
+                delay = 400
+            )
+
+            // Address Field
+            AnimatedTextField(
+                value = address,
+                onValueChange = onAddressChange,
+                label = "🏠 Address",
+                placeholder = "Enter your complete address",
+                icon = Icons.Default.LocationOn,
+                iconColor = AccentPurple,
+                enabled = !isUpdating,
+                minLines = 2,
+                delay = 600
+            )
+        }
+    }
+}
+
+@Composable
+fun AnimatedTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    enabled: Boolean,
+    minLines: Int = 1,
+    delay: Int
+) {
+    var isVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(delay.toLong())
+        isVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = tween(500, easing = FastOutSlowInEasing)
+        ) + fadeIn()
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label, fontSize = 14.sp) },
+            placeholder = { Text(placeholder, fontSize = 14.sp) },
+            leadingIcon = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconColor
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            minLines = minLines,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = iconColor,
+                focusedLabelColor = iconColor,
+                cursorColor = iconColor,
+                focusedLeadingIconColor = iconColor
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+    }
+}
+
+@Composable
+fun SaveButton(
+    isUpdating: Boolean,
+    onClick: () -> Unit
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    val infiniteTransition = rememberInfiniteTransition()
+
+    val gradientShift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Button(
+        onClick = {
+            isPressed = true
+            onClick()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .scale(scale)
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        enabled = !isUpdating,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent
+        ),
+        shape = RoundedCornerShape(16.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        LaunchedEffect(isPressed) {
+            if (isPressed) {
+                delay(200)
+                isPressed = false
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = if (isUpdating) {
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Gray.copy(alpha = 0.7f),
+                                Color.Gray.copy(alpha = 0.5f)
+                            )
+                        )
                     } else {
+                        Brush.linearGradient(
+                            colors = listOf(
+                                VibrantGreen,
+                                AccentBlue,
+                                AccentPurple
+                            ),
+                            start = androidx.compose.ui.geometry.Offset(
+                                gradientShift * 1000f,
+                                0f
+                            ),
+                            end = androidx.compose.ui.geometry.Offset(
+                                1000f + gradientShift * 1000f,
+                                1000f
+                            )
+                        )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isUpdating) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.3f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.3f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Save",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp),
+                            tint = Color.White
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text(
-                        if (isUpdating) "Saving..." else "Save Changes",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = if (isUpdating) "💾 Saving..." else "💾 Save Changes",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
@@ -398,18 +729,16 @@ fun EditProfileScreenEmptyPreview() {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true, name = "Dark Theme")
+@Preview(showBackground = true, showSystemUi = true, name = "Long Name")
 @Composable
-fun EditProfileScreenDarkPreview() {
-    MaterialTheme(
-        colorScheme = darkColorScheme()
-    ) {
+fun EditProfileLongNamePreview() {
+    MaterialTheme {
         EditProfileBody(
             userID = "sample_user_id",
-            currentName = "Rohit Shah",
-            currentEmail = "rohitshah@gmail.com",
+            currentName = "Rohit Kumar Shah Thakuri",
+            currentEmail = "rohitshah.thakuri@gmail.com",
             currentPhone = "+977-9863481707",
-            currentAddress = "Pokhara, Nepal"
+            currentAddress = "Pokhara Metropolitan City, Gandaki Province, Nepal"
         )
     }
 }

@@ -5,5 +5,6 @@ data class ProductModel(
     var productName : String = "",
     var price : Double = 0.0,
     var description : String = "" ,
-    var image : String = ""
+    var image : String = "" ,
+    var isLiked: Boolean = false
 )

@@ -119,10 +119,10 @@ fun ModernEcoSajhaDashboard() {
         viewModel.getAllProduct()
     }
 
-    // Handle notification display
+    // Handle notification display with faster timing
     LaunchedEffect(notificationMessage) {
         notificationMessage?.let { message ->
-            delay(3000) // Show for 3 seconds
+            delay(2500) // Show for 2.5 seconds
             notificationMessage = null
         }
     }
@@ -133,7 +133,7 @@ fun ModernEcoSajhaDashboard() {
             ModernEcoTopAppBar(
                 onSearchClick = { selectedTab = 1 },
                 onNotificationClick = { /* Handle notifications */ },
-                onLogoClick = { selectedTab = 0 }, // Navigate to home tab
+                onLogoClick = { selectedTab = 0 },
                 notificationMessage = notificationMessage
             )
         },
@@ -203,7 +203,6 @@ fun ModernEcoSajhaDashboard() {
                                             intent.putExtra("productID", productId)
                                             context.startActivity(intent)
 
-                                            // Find product name for notification
                                             val product = products.value.find { it?.productID.toString() == productId }
                                             notificationMessage = "📦 ${product?.productName ?: "Product"} viewed"
                                         } else {
@@ -246,6 +245,17 @@ fun ModernEcoSajhaDashboard() {
                                         Log.e("DashboardActivity", "Error deleting product", e)
                                         Toast.makeText(context, "Error deleting product", Toast.LENGTH_SHORT).show()
                                     }
+                                },
+                                onToggleLike = { productId, newLikeState, productName ->
+                                    // Immediate notification update
+                                    notificationMessage = if (newLikeState) {
+                                        "❤️ $productName is liked and saved"
+                                    } else {
+                                        "💔 $productName is unliked and removed"
+                                    }
+
+                                    // Here you would typically call a ViewModel method to update in database
+                                    // viewModel.updateProductLike(productId, newLikeState)
                                 },
                                 onAddProduct = {
                                     try {
@@ -319,7 +329,7 @@ fun ModernEcoTopAppBar(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.clickable { onLogoClick() } // Make clickable to navigate to home
+                    modifier = Modifier.clickable { onLogoClick() }
                 ) {
                     Box(
                         modifier = Modifier
@@ -386,7 +396,6 @@ fun ModernEcoTopAppBar(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    // Show notification badge when there's a message
                     if (notificationMessage != null) {
                         Box(
                             modifier = Modifier
@@ -407,11 +416,15 @@ fun ModernEcoTopAppBar(
             )
         )
 
-        // Show notification message
+        // Show notification message with faster animation
         AnimatedVisibility(
             visible = notificationMessage != null,
-            enter = slideInVertically() + fadeIn(),
-            exit = slideOutVertically() + fadeOut()
+            enter = slideInVertically(
+                animationSpec = tween(200, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(150)),
+            exit = slideOutVertically(
+                animationSpec = tween(200, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(150))
         ) {
             Card(
                 modifier = Modifier
@@ -441,6 +454,7 @@ fun ModernHomeScreen(
     onViewProduct: (String) -> Unit,
     onEditProduct: (String) -> Unit,
     onDeleteProduct: (String) -> Unit,
+    onToggleLike: (String, Boolean, String) -> Unit,
     onAddProduct: () -> Unit,
     onViewStats: () -> Unit,
     onViewAllProducts: () -> Unit
@@ -458,9 +472,7 @@ fun ModernHomeScreen(
         }
 
         item {
-            ModernWelcomeCard(
-                onStartRecycling = onAddProduct // Navigate to AddProductActivity
-            )
+            ModernWelcomeCard(onStartRecycling = onAddProduct)
         }
 
         item {
@@ -543,6 +555,13 @@ fun ModernHomeScreen(
                         if (productId.isNotEmpty()) {
                             onDeleteProduct(productId)
                         }
+                    },
+                    onToggleLike = { newLikeState ->
+                        val productId = product.productID?.toString() ?: ""
+                        val productName = product.productName ?: "Product"
+                        if (productId.isNotEmpty()) {
+                            onToggleLike(productId, newLikeState, productName)
+                        }
                     }
                 )
             }
@@ -576,7 +595,6 @@ fun ModernWelcomeCard(onStartRecycling: () -> Unit) {
         shape = RoundedCornerShape(24.dp)
     ) {
         Box {
-            // Animated background gradient
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -802,6 +820,196 @@ fun ModernEmptyStateSection(onAddProduct: () -> Unit) {
 }
 
 @Composable
+fun ModernProductCard(
+    product: ProductModel,
+    onView: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleLike: (Boolean) -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    // Use local state for immediate UI response
+    var isLiked by remember(product.productID) { mutableStateOf(product.isLiked) }
+
+    // Animation for heart scale
+    val heartScale by animateFloatAsState(
+        targetValue = if (isLiked) 1.2f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "heart_scale"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(
+                                    color = EcoGreen,
+                                    shape = CircleShape
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = product.productName ?: "Unknown Item",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = EcoGreenDark
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Surface(
+                        color = EcoGreenSurface,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "₹",
+                                fontSize = 16.sp,
+                                color = EcoGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${product.price ?: 0}",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = EcoGreen
+                            )
+                            Text(
+                                text = "/kg",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    if (isExpanded) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = product.description ?: "No description available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Optimized Heart Icon with instant response
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .clickable {
+                                // Update local state immediately
+                                val newLikeState = !isLiked
+                                isLiked = newLikeState
+
+                                // Update the actual product model
+                                product.isLiked = newLikeState
+
+                                // Trigger callback immediately
+                                onToggleLike(newLikeState)
+                            }
+                            .background(
+                                color = if (isLiked) Color.Red.copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (isLiked) "Unlike" else "Like",
+                            tint = if (isLiked) Color.Red else Color.Gray,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .scale(heartScale)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { isExpanded = !isExpanded }
+                    ) {
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                            tint = EcoGreen
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ModernActionChip(
+                    icon = Icons.Outlined.Visibility,
+                    text = "View",
+                    color = EcoGreen,
+                    modifier = Modifier.weight(1f),
+                    onClick = onView
+                )
+
+                ModernActionChip(
+                    icon = Icons.Outlined.Edit,
+                    text = "Edit",
+                    color = Color(0xFF1976D2),
+                    modifier = Modifier.weight(1f),
+                    onClick = onEdit
+                )
+
+                ModernActionChip(
+                    icon = Icons.Outlined.Delete,
+                    text = "Delete",
+                    color = Color(0xFFD32F2F),
+                    modifier = Modifier.weight(1f),
+                    onClick = onDelete
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun ModernStatsDetailScreen(
     products: List<ProductModel?>,
     onBack: () -> Unit
@@ -809,7 +1017,7 @@ fun ModernStatsDetailScreen(
     val validProducts = products.filterNotNull()
     val totalItems = validProducts.size
     val totalValue = validProducts.sumOf { it.price?.toDouble() ?: 0.0 }
-    val carbonSaved = totalItems * 2.5 // Estimate: 2.5kg CO2 per item
+    val carbonSaved = totalItems * 2.5
 
     LazyColumn(
         modifier = Modifier
@@ -931,69 +1139,6 @@ fun ModernDetailedStatCard(stat: DetailedStatData) {
     }
 }
 
-// Helper data classes and functions
-data class ModernBottomNavItem(
-    val label: String,
-    val icon: ImageVector,
-    val selectedIcon: ImageVector
-)
-
-data class ModernStatData(
-    val icon: String,
-    val value: String,
-    val label: String,
-    val backgroundColor: Color
-)
-
-data class DetailedStatData(
-    val icon: String,
-    val value: String,
-    val label: String,
-    val description: String,
-    val backgroundColor: Color
-)
-
-fun getModernStatsData(productCount: Int): List<ModernStatData> = listOf(
-    ModernStatData("📦", "$productCount", "Total Items", EcoGreenSurface),
-    ModernStatData("💰", "₹${productCount * 45}", "Est. Earnings", Color(0xFFE8F5E8)),
-    ModernStatData("🌱", "${(productCount * 2.5).toInt()} kg", "CO₂ Saved", Color(0xFFE3F2FD)),
-    ModernStatData("♻️", "$productCount", "Items Recycled", Color(0xFFFFF3E0))
-)
-
-fun getDetailedStats(totalItems: Int, totalValue: Double, carbonSaved: Double): List<DetailedStatData> = listOf(
-    DetailedStatData(
-        icon = "📦",
-        value = "$totalItems",
-        label = "Items Added",
-        description = "Total recyclable items in your collection",
-        backgroundColor = EcoGreenSurface
-    ),
-    DetailedStatData(
-        icon = "💰",
-        value = "₹${totalValue.toInt()}",
-        label = "Estimated Value",
-        description = "Potential earnings from your recyclables",
-        backgroundColor = Color(0xFFE8F5E8)
-    ),
-    DetailedStatData(
-        icon = "🌱",
-        value = "${carbonSaved.toInt()} kg",
-        label = "CO₂ Saved",
-        description = "Environmental impact of your recycling",
-        backgroundColor = Color(0xFFE3F2FD)
-    ),
-    DetailedStatData(
-        icon = "🏆",
-        value = "Level ${(totalItems / 5) + 1}",
-        label = "Eco Level",
-        description = "Your current environmental impact level",
-        backgroundColor = Color(0xFFFFF3E0)
-    )
-)
-
-// Continue with the rest of the components (ModernActionButton, ModernProductCard, etc.)
-// [Rest of the code remains the same as in the previous version]
-
 @Composable
 fun ModernActionButton(
     icon: String,
@@ -1055,7 +1200,6 @@ fun ModernFloatingActionButton(onClick: () -> Unit) {
     )
 
     Box(contentAlignment = Alignment.Center) {
-        // Glow effect
         Box(
             modifier = Modifier
                 .size(80.dp)
@@ -1147,148 +1291,6 @@ fun ModernEcoBottomNavigation(
     }
 }
 
-// Add the remaining components from the previous version...
-@Composable
-fun ModernProductCard(
-    product: ProductModel,
-    onView: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .background(
-                                    color = EcoGreen,
-                                    shape = CircleShape
-                                )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = product.productName ?: "Unknown Item",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = EcoGreenDark
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Surface(
-                        color = EcoGreenSurface,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "₹",
-                                fontSize = 16.sp,
-                                color = EcoGreen,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "${product.price ?: 0}",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = EcoGreen
-                            )
-                            Text(
-                                text = "/kg",
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-
-                    if (isExpanded) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = product.description ?: "No description available",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
-                            lineHeight = 20.sp
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = { isExpanded = !isExpanded }
-                ) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        tint = EcoGreen
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ModernActionChip(
-                    icon = Icons.Outlined.Visibility,
-                    text = "View",
-                    color = EcoGreen,
-                    modifier = Modifier.weight(1f),
-                    onClick = onView
-                )
-
-                ModernActionChip(
-                    icon = Icons.Outlined.Edit,
-                    text = "Edit",
-                    color = Color(0xFF1976D2),
-                    modifier = Modifier.weight(1f),
-                    onClick = onEdit
-                )
-
-                ModernActionChip(
-                    icon = Icons.Outlined.Delete,
-                    text = "Delete",
-                    color = Color(0xFFD32F2F),
-                    modifier = Modifier.weight(1f),
-                    onClick = onDelete
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun ModernActionChip(
     icon: ImageVector,
@@ -1328,7 +1330,6 @@ fun ModernActionChip(
     }
 }
 
-// Loading Section
 @Composable
 fun ModernLoadingSection() {
     Card(
@@ -1359,7 +1360,6 @@ fun ModernLoadingSection() {
     }
 }
 
-// Search Screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernSearchScreen(
@@ -1622,7 +1622,6 @@ fun ModernNoResultsState(query: String) {
     }
 }
 
-// Profile Screen
 @Composable
 fun ModernProfileScreen() {
     val context = LocalContext.current
@@ -1710,7 +1709,6 @@ fun ModernProfileHeader(user: UserModel?, currentUser: FirebaseUser?) {
         shape = RoundedCornerShape(28.dp)
     ) {
         Box {
-            // Background gradient
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1732,7 +1730,6 @@ fun ModernProfileHeader(user: UserModel?, currentUser: FirebaseUser?) {
                     .padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Profile Picture with glow effect
                 Box(
                     contentAlignment = Alignment.Center
                 ) {
@@ -2036,6 +2033,66 @@ fun ModernProfileActions(
         }
     }
 }
+
+// Helper data classes and functions
+data class ModernBottomNavItem(
+    val label: String,
+    val icon: ImageVector,
+    val selectedIcon: ImageVector
+)
+
+data class ModernStatData(
+    val icon: String,
+    val value: String,
+    val label: String,
+    val backgroundColor: Color
+)
+
+data class DetailedStatData(
+    val icon: String,
+    val value: String,
+    val label: String,
+    val description: String,
+    val backgroundColor: Color
+)
+
+fun getModernStatsData(productCount: Int): List<ModernStatData> = listOf(
+    ModernStatData("📦", "$productCount", "Total Items", EcoGreenSurface),
+    ModernStatData("💰", "₹${productCount * 45}", "Est. Earnings", Color(0xFFE8F5E8)),
+    ModernStatData("🌱", "${(productCount * 2.5).toInt()} kg", "CO₂ Saved", Color(0xFFE3F2FD)),
+    ModernStatData("♻️", "$productCount", "Items Recycled", Color(0xFFFFF3E0))
+)
+
+fun getDetailedStats(totalItems: Int, totalValue: Double, carbonSaved: Double): List<DetailedStatData> = listOf(
+    DetailedStatData(
+        icon = "📦",
+        value = "$totalItems",
+        label = "Items Added",
+        description = "Total recyclable items in your collection",
+        backgroundColor = EcoGreenSurface
+    ),
+    DetailedStatData(
+        icon = "💰",
+        value = "₹${totalValue.toInt()}",
+        label = "Estimated Value",
+        description = "Potential earnings from your recyclables",
+        backgroundColor = Color(0xFFE8F5E8)
+    ),
+    DetailedStatData(
+        icon = "🌱",
+        value = "${carbonSaved.toInt()} kg",
+        label = "CO₂ Saved",
+        description = "Environmental impact of your recycling",
+        backgroundColor = Color(0xFFE3F2FD)
+    ),
+    DetailedStatData(
+        icon = "🏆",
+        value = "Level ${(totalItems / 5) + 1}",
+        label = "Eco Level",
+        description = "Your current environmental impact level",
+        backgroundColor = Color(0xFFFFF3E0)
+    )
+)
 
 fun getProfileStats(): List<ModernStatData> = listOf(
     ModernStatData("⭐", "4.8", "Rating", Color(0xFFFFF3E0)),
