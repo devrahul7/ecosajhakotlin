@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ecosajha</string>
+    <string name="app_name">Ecosajha</string>
     <string name="title_activity_splash">SplashActivity</string>
     <string name="title_activity_login_acitivity">LoginAcitivity</string>
     <string name="title_activity_dashboard">DashboardActivity</string>

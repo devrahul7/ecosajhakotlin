@@ -13,17 +13,25 @@
         android:theme="@style/Theme.Ecosajha"
         tools:replace="android:fullBackupContent"
         tools:targetApi="31">
+
+        <!-- Main Activity - ONLY launcher activity -->
         <activity
             android:name=".view.MainActivity"
             android:exported="true"
-            android:label="@string/title_activity_main"
             android:theme="@style/Theme.Ecosajha">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Login Activity - NO launcher intent filter, exported=false -->
+        <activity
+            android:name=".view.LoginActivity"
+            android:exported="false"
+            android:label="@string/title_activity_login"
+            android:theme="@style/Theme.Ecosajha" />
+
         <activity
             android:name=".view.EditProfileActivity"
             android:exported="false"
@@ -57,17 +65,7 @@
             android:exported="false"
             android:label="@string/title_activity_registration"
             android:theme="@style/Theme.Ecosajha" />
-        <activity
-            android:name=".view.LoginActivity"
-            android:exported="true"
-            android:label="@string/title_activity_login"
-            android:theme="@style/Theme.Ecosajha">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
     </application>
 
 </manifest>
