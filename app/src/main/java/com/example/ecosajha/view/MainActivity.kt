@@ -1,5 +1,8 @@
 package com.example.ecosajha.view
 
+
+import androidx.compose.material3.lightColorScheme
+
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -45,9 +48,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
-fun MainActivity(content: @Composable () -> Unit) {
+fun EcoSajhaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Color(0xFF4CAF50),
@@ -57,6 +59,7 @@ fun MainActivity(content: @Composable () -> Unit) {
         content = content
     )
 }
+
 
 @Composable
 fun SplashAndNavigate() {
@@ -286,7 +289,7 @@ fun RecyclingAppSplashScreen() {
                 modifier = Modifier.alpha(taglineAlpha)
             )
 
-            Spacer(modifier = Modifier.weight(0.4f))
+            Spacer(modifier = Modifier.weight(0.1f))
 
             // Loading Section
             Column(
