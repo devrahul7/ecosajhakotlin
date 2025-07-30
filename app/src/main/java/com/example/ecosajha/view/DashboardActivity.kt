@@ -34,7 +34,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -119,10 +118,9 @@ fun ModernEcoSajhaDashboard() {
         viewModel.getAllProduct()
     }
 
-    // Handle notification display with faster timing
     LaunchedEffect(notificationMessage) {
         notificationMessage?.let { message ->
-            delay(2500) // Show for 2.5 seconds
+            delay(2500)
             notificationMessage = null
         }
     }
@@ -254,8 +252,21 @@ fun ModernEcoSajhaDashboard() {
                                         "💔 $productName is unliked and removed"
                                     }
 
-                                    // Here you would typically call a ViewModel method to update in database
-                                    // viewModel.updateProductLike(productId, newLikeState)
+                                    // Call ViewModel to update in database
+                                    val updateData = mutableMapOf<String, Any?>(
+                                        "isLiked" to newLikeState,
+                                        "likedAt" to if (newLikeState) System.currentTimeMillis() else null
+                                    )
+
+                                    viewModel.updateProduct(productId, updateData) { success, message ->
+                                        if (success) {
+                                            Log.d("LikeUpdate", "Product like state updated successfully")
+                                            viewModel.getAllProduct()
+                                        } else {
+                                            Log.e("LikeUpdate", "Failed to update like state: $message")
+                                            Toast.makeText(context, "Failed to update like: $message", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 },
                                 onAddProduct = {
                                     try {
@@ -416,7 +427,6 @@ fun ModernEcoTopAppBar(
             )
         )
 
-        // Show notification message with faster animation
         AnimatedVisibility(
             visible = notificationMessage != null,
             enter = slideInVertically(
@@ -828,10 +838,8 @@ fun ModernProductCard(
     onToggleLike: (Boolean) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    // Use local state for immediate UI response
     var isLiked by remember(product.productID) { mutableStateOf(product.isLiked) }
 
-    // Animation for heart scale
     val heartScale by animateFloatAsState(
         targetValue = if (isLiked) 1.2f else 1.0f,
         animationSpec = spring(
@@ -931,20 +939,14 @@ fun ModernProductCard(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Optimized Heart Icon with instant response
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
                             .clickable {
-                                // Update local state immediately
                                 val newLikeState = !isLiked
                                 isLiked = newLikeState
-
-                                // Update the actual product model
                                 product.isLiked = newLikeState
-
-                                // Trigger callback immediately
                                 onToggleLike(newLikeState)
                             }
                             .background(
