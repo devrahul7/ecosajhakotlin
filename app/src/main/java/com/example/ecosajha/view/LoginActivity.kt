@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,20 +37,24 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,52 +74,128 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.ecosajha.R
-import com.example.ecosajha.repository.UserRepositoryImpl
-import com.example.ecosajha.viewmodel.UserViewModel
+import com.example.ecosajha.viewmodel.AuthViewModel
 
 class LoginActivity : ComponentActivity() {
+
+    private val authViewModel: AuthViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             Scaffold { innerPadding ->
-                LoginBody(innerPadding)
+                LoginBody(
+                    innerPaddingValues = innerPadding,
+                    authViewModel = authViewModel,
+                    onNavigateToResetPassword = {
+                        startActivity(Intent(this, ResetPasswordActivity::class.java))
+                    },
+                    onNavigateToRegistration = {
+                        startActivity(Intent(this, RegistrationActivity::class.java))
+                        finish()
+                    },
+                    onLoginSuccess = {
+                        startActivity(Intent(this, DashboardActivity::class.java))
+                        finish()
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun LoginBody(innerPaddingValues: PaddingValues) {
-
-    val repo = remember { UserRepositoryImpl() }
-    val userViewModel = remember { UserViewModel(repo) }
-
+fun LoginBody(
+    innerPaddingValues: PaddingValues,
+    authViewModel: AuthViewModel,
+    onNavigateToResetPassword: () -> Unit,
+    onNavigateToRegistration: () -> Unit,
+    onLoginSuccess: () -> Unit
+) {
     val context = LocalContext.current
-    val activity = context as Activity
-
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisibility by remember { mutableStateOf(false) }
-    var rememberMe by remember { mutableStateOf(false) }
-
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var passwordVisibility by remember { mutableStateOf(false) }
+    var rememberMe by remember { mutableStateOf(false) }
+
+    // Collect states from AuthViewModel
+    val isLoading by authViewModel.isLoading.collectAsState()
+    val errorMessage by authViewModel.errorMessage.collectAsState()
+    val successMessage by authViewModel.successMessage.collectAsState()
+
     // SharedPreferences for Remember Me functionality
-    val sharedPreferences = context.getSharedPreferences("User", Context.MODE_PRIVATE)
+    val sharedPreferences = context.getSharedPreferences("EcoSajhaUser", Context.MODE_PRIVATE)
     val editor = sharedPreferences.edit()
 
     // Load saved credentials if available
     LaunchedEffect(Unit) {
-        val localEmail: String = sharedPreferences.getString("email", "") ?: ""
-        val localPassword: String = sharedPreferences.getString("password", "") ?: ""
+        val savedEmail = sharedPreferences.getString("saved_email", "") ?: ""
+        val savedPassword = sharedPreferences.getString("saved_password", "") ?: ""
+        val wasRemembered = sharedPreferences.getBoolean("remember_me", false)
 
-        if (localEmail.isNotEmpty()) {
-            username = localEmail
-            password = localPassword
+        if (savedEmail.isNotEmpty() && wasRemembered) {
+            email = savedEmail
+            password = savedPassword
             rememberMe = true
         }
+    }
+
+    // Handle success messages
+    LaunchedEffect(successMessage) {
+        successMessage?.let { message ->
+            if (message.contains("Login successful", ignoreCase = true) ||
+                message.contains("success", ignoreCase = true)) {
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                onLoginSuccess()
+            }
+            authViewModel.clearSuccessMessage()
+        }
+    }
+
+    // Handle error messages
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            authViewModel.clearErrorMessage()
+        }
+    }
+
+    // Enhanced email validation
+    fun isValidEmail(email: String): Boolean {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
+    // Validation function
+    fun validateInputs(): Boolean {
+        var isValid = true
+
+        if (email.trim().isEmpty()) {
+            emailError = "Email is required"
+            isValid = false
+        } else if (!isValidEmail(email.trim())) {
+            emailError = "Please enter a valid email address"
+            isValid = false
+        } else {
+            emailError = null
+        }
+
+        if (password.isEmpty()) {
+            passwordError = "Password is required"
+            isValid = false
+        } else if (password.length < 6) {
+            passwordError = "Password must be at least 6 characters"
+            isValid = false
+        } else {
+            passwordError = null
+        }
+
+        return isValid
     }
 
     // Modern color scheme
@@ -122,9 +204,22 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
     val cardColor = Color.White
     val textColor = Color(0xFF212529)
     val placeholderColor = Color(0xFF6C757D)
+    val errorColor = Color(0xFFDC3545)
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                snackbar = { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = errorColor,
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            )
+        }
     ) { padding ->
         Box(
             modifier = Modifier
@@ -168,7 +263,7 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
 
                 Image(
                     painter = painterResource(R.drawable.loginimg),
-                    contentDescription = null,
+                    contentDescription = "EcoSajha Logo",
                     modifier = Modifier
                         .height(200.dp)
                         .width(200.dp)
@@ -203,8 +298,12 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
 
                         // Email Field
                         OutlinedTextField(
-                            value = username,
-                            onValueChange = { username = it },
+                            value = email,
+                            onValueChange = {
+                                email = it
+                                emailError = null
+                            },
+                            label = { Text("Email") },
                             placeholder = { Text("abc@gmail.com", color = placeholderColor) },
                             leadingIcon = {
                                 Icon(
@@ -218,11 +317,18 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = primaryColor,
                                 unfocusedBorderColor = Color(0xFFDEE2E6),
-                                focusedLabelColor = primaryColor
+                                focusedLabelColor = primaryColor,
+                                errorBorderColor = errorColor,
+                                errorLabelColor = errorColor
                             ),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Email
-                            )
+                            ),
+                            isError = emailError != null,
+                            supportingText = emailError?.let {
+                                { Text(it, color = errorColor) }
+                            },
+                            singleLine = true
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -230,7 +336,11 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                         // Password Field
                         OutlinedTextField(
                             value = password,
-                            onValueChange = { password = it },
+                            onValueChange = {
+                                password = it
+                                passwordError = null
+                            },
+                            label = { Text("Password") },
                             placeholder = { Text("*******", color = placeholderColor) },
                             leadingIcon = {
                                 Icon(
@@ -250,7 +360,7 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                                             else
                                                 R.drawable.baseline_visibility_off_24
                                         ),
-                                        contentDescription = null,
+                                        contentDescription = if (passwordVisibility) "Hide password" else "Show password",
                                         tint = primaryColor
                                     )
                                 }
@@ -264,11 +374,18 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = primaryColor,
                                 unfocusedBorderColor = Color(0xFFDEE2E6),
-                                focusedLabelColor = primaryColor
+                                focusedLabelColor = primaryColor,
+                                errorBorderColor = errorColor,
+                                errorLabelColor = errorColor
                             ),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password
-                            )
+                            ),
+                            isError = passwordError != null,
+                            supportingText = passwordError?.let {
+                                { Text(it, color = errorColor) }
+                            },
+                            singleLine = true
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -305,9 +422,7 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                                 fontWeight = FontWeight.Medium,
                                 textDecoration = TextDecoration.Underline,
                                 modifier = Modifier.clickable {
-                                    val intent = Intent(context, ResetPasswordActivity::class.java)
-                                    context.startActivity(intent)
-                                    activity.finish()
+                                    onNavigateToResetPassword()
                                 }
                             )
                         }
@@ -317,21 +432,21 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                         // Login Button
                         Button(
                             onClick = {
-                                if (rememberMe) {
-                                    editor.putString("email", username)
-                                    editor.putString("password", password)
-                                    editor.apply()
-                                }
-
-                                userViewModel.login(username, password) { success, message ->
-                                    if (success) {
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                        val intent = Intent(context, DashboardActivity::class.java)
-                                        context.startActivity(intent)
-                                        activity.finish()
+                                if (validateInputs()) {
+                                    // Save credentials if remember me is checked
+                                    if (rememberMe) {
+                                        editor.putString("saved_email", email.trim())
+                                        editor.putString("saved_password", password)
+                                        editor.putBoolean("remember_me", true)
+                                        editor.apply()
                                     } else {
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                        // Clear saved credentials if not remembering
+                                        editor.clear()
+                                        editor.apply()
                                     }
+
+                                    // 🔥 Use Firebase Authentication
+                                    authViewModel.loginWithEmailAndPassword(email.trim(), password)
                                 }
                             },
                             modifier = Modifier
@@ -339,19 +454,36 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                                 .height(56.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryColor
+                                containerColor = primaryColor,
+                                disabledContainerColor = primaryColor.copy(alpha = 0.5f)
                             ),
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 4.dp,
                                 pressedElevation = 8.dp
-                            )
+                            ),
+                            enabled = !isLoading
                         ) {
-                            Text(
-                                "Sign In",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    "Signing In...",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text(
+                                    "Sign In",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
@@ -374,9 +506,7 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                                 fontWeight = FontWeight.SemiBold,
                                 textDecoration = TextDecoration.Underline,
                                 modifier = Modifier.clickable {
-                                    val intent = Intent(context, RegistrationActivity::class.java)
-                                    context.startActivity(intent)
-                                    activity.finish()
+                                    onNavigateToRegistration()
                                 }
                             )
                         }
@@ -393,31 +523,51 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.google),
-                        contentDescription = null,
+                    Card(
                         modifier = Modifier
-                            .height(50.dp)
-                            .width(50.dp)
+                            .size(60.dp)
                             .clickable {
-                                // Handle Google login
                                 Toast.makeText(context, "Google login not implemented yet", Toast.LENGTH_SHORT).show()
-                            }
-                    )
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.google),
+                                contentDescription = "Google Login",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.width(20.dp))
 
-                    Image(
-                        painter = painterResource(R.drawable.fb),
-                        contentDescription = null,
+                    Card(
                         modifier = Modifier
-                            .height(50.dp)
-                            .width(50.dp)
+                            .size(60.dp)
                             .clickable {
-                                // Handle Facebook login
                                 Toast.makeText(context, "Facebook login not implemented yet", Toast.LENGTH_SHORT).show()
-                            }
-                    )
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.fb),
+                                contentDescription = "Facebook Login",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -429,5 +579,12 @@ fun LoginBody(innerPaddingValues: PaddingValues) {
 @Preview
 @Composable
 fun LoginPreviewBody() {
-    LoginBody(innerPaddingValues = PaddingValues(0.dp))
+    // For preview purposes, create mock implementations
+    LoginBody(
+        innerPaddingValues = PaddingValues(0.dp),
+        authViewModel = AuthViewModel(), // This won't work in preview, but needed for compilation
+        onNavigateToResetPassword = {},
+        onNavigateToRegistration = {},
+        onLoginSuccess = {}
+    )
 }
