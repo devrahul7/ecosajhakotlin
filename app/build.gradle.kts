@@ -48,7 +48,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.3.0")
 // Activity Result API (if not already added)
     implementation("androidx.activity:activity-compose:1.8.2")
-
+    testImplementation("org.mockito:mockito-core:5.6.0")
     implementation("androidx.compose.material:material-icons-extended:<version>")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.compose.runtime:runtime-livedata:1.6.0")

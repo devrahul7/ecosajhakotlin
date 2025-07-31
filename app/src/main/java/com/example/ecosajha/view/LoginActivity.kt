@@ -74,11 +74,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.ecosajha.R
+import com.example.ecosajha.repository.AuthRepositoryImpl
 import com.example.ecosajha.viewmodel.AuthViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 class LoginActivity : ComponentActivity() {
 
-    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,7 +88,6 @@ class LoginActivity : ComponentActivity() {
             Scaffold { innerPadding ->
                 LoginBody(
                     innerPaddingValues = innerPadding,
-                    authViewModel = authViewModel,
                     onNavigateToResetPassword = {
                         startActivity(Intent(this, ResetPasswordActivity::class.java))
                     },
@@ -108,7 +108,6 @@ class LoginActivity : ComponentActivity() {
 @Composable
 fun LoginBody(
     innerPaddingValues: PaddingValues,
-    authViewModel: AuthViewModel,
     onNavigateToResetPassword: () -> Unit,
     onNavigateToRegistration: () -> Unit,
     onLoginSuccess: () -> Unit
@@ -124,6 +123,7 @@ fun LoginBody(
     var passwordVisibility by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
 
+    val authViewModel = remember { AuthViewModel(AuthRepositoryImpl(FirebaseAuth.getInstance())) }
     // Collect states from AuthViewModel
     val isLoading by authViewModel.isLoading.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
@@ -582,7 +582,6 @@ fun LoginPreviewBody() {
     // For preview purposes, create mock implementations
     LoginBody(
         innerPaddingValues = PaddingValues(0.dp),
-        authViewModel = AuthViewModel(), // This won't work in preview, but needed for compilation
         onNavigateToResetPassword = {},
         onNavigateToRegistration = {},
         onLoginSuccess = {}

@@ -61,8 +61,11 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.ecosajha.R
 import com.example.ecosajha.model.UserModel
+import com.example.ecosajha.repository.AuthRepositoryImpl
 import com.example.ecosajha.repository.UserRepositoryImpl
+import com.example.ecosajha.viewmodel.AuthViewModel
 import com.example.ecosajha.viewmodel.UserViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 class RegistrationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,6 +82,8 @@ fun RegistrationBody() {
     val repo = remember { UserRepositoryImpl() }
     val primaryColor = Color(0xFF4CAF50)
     val userViewModel = remember { UserViewModel(repo) }
+    val authRepo = remember { AuthRepositoryImpl(FirebaseAuth.getInstance()) }
+    val authViewModel = remember { AuthViewModel(authRepo) }
 
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -341,7 +346,8 @@ fun RegistrationBody() {
                 onClick = {
                     // Add validation here
                     if (fullName.isBlank() || email.isBlank() || phoneNumber.isBlank() ||
-                        password.isBlank() || confirmPassword.isBlank() || address.isBlank()) {
+                        password.isBlank() || confirmPassword.isBlank() || address.isBlank()
+                    ) {
                         Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
@@ -352,14 +358,18 @@ fun RegistrationBody() {
                     }
 
                     if (!agreeToTerms) {
-                        Toast.makeText(context, "Please agree to terms and conditions", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "Please agree to terms and conditions",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         return@Button
                     }
 
-                    userViewModel.register(email, password) { success, message, userId ->
+                    authViewModel.register(email, password) { success, message, userId ->
                         if (success) {
                             val userModel = UserModel(
-                                userId, fullName, email, "" ,phoneNumber, address
+                                userId, fullName, email, "", phoneNumber, address
                             )
                             userViewModel.addUserToDatabase(userId, userModel) { success, message ->
                                 if (success) {
@@ -436,7 +446,11 @@ fun RegistrationBody() {
                         .height(50.dp)
                         .width(50.dp)
                         .clickable {
-                            Toast.makeText(context, "Google registration coming soon!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "Google registration coming soon!",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                 )
 
@@ -449,7 +463,11 @@ fun RegistrationBody() {
                         .height(40.dp)
                         .width(50.dp)
                         .clickable {
-                            Toast.makeText(context, "Facebook registration coming soon!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "Facebook registration coming soon!",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                 )
             }

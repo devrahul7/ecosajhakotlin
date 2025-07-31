@@ -31,18 +31,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ecosajha.R
+import com.example.ecosajha.repository.AuthRepositoryImpl
 import com.example.ecosajha.viewmodel.AuthViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 class ResetPasswordActivity : ComponentActivity() {
 
-    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             ResetPasswordScreen(
-                authViewModel = authViewModel,
                 onBackToLogin = {
                     startActivity(Intent(this, LoginActivity::class.java))
                     finish()
@@ -58,13 +58,13 @@ class ResetPasswordActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResetPasswordScreen(
-    authViewModel: AuthViewModel,
     onBackToLogin: () -> Unit,
     onBackPressed: () -> Unit
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
 
+    val authViewModel = remember { AuthViewModel(AuthRepositoryImpl(FirebaseAuth.getInstance())) }
     // Collect states from AuthViewModel
     val isLoading by authViewModel.isLoading.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
