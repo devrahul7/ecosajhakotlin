@@ -107,6 +107,9 @@ fun ModernEcoSajhaDashboard() {
     var notificationMessage by remember { mutableStateOf<String?>(null) }
     var showStats by remember { mutableStateOf(false) }
 
+    // **NEW**: Local heart favorites state (UI only)
+    var favoriteProducts by remember { mutableStateOf(setOf<String>()) }
+
     val repo = remember { ProductRepositoryImpl() }
     val viewModel = remember { ProductViewModel(repo) }
     val context = LocalContext.current
@@ -122,6 +125,22 @@ fun ModernEcoSajhaDashboard() {
         notificationMessage?.let { message ->
             delay(2500)
             notificationMessage = null
+        }
+    }
+
+    // **NEW**: Simple toggle favorite function (UI only)
+    fun toggleFavorite(productId: String, productName: String) {
+        favoriteProducts = if (favoriteProducts.contains(productId)) {
+            favoriteProducts - productId
+        } else {
+            favoriteProducts + productId
+        }
+
+        // Update notification message
+        notificationMessage = if (favoriteProducts.contains(productId)) {
+            "❤️ $productName is liked and saved"
+        } else {
+            "💔 $productName is unliked and removed"
         }
     }
 
@@ -194,13 +213,14 @@ fun ModernEcoSajhaDashboard() {
                             ModernHomeScreen(
                                 products = products.value,
                                 loading = loading.value,
+                                favoriteProducts = favoriteProducts, // Pass favorites
+                                onToggleFavorite = ::toggleFavorite,   // Pass toggle function
                                 onViewProduct = { productId ->
                                     try {
                                         if (productId.isNotEmpty() && productId != "null") {
                                             val intent = Intent(context, ViewProductActivity::class.java)
                                             intent.putExtra("productID", productId)
                                             context.startActivity(intent)
-
                                             val product = products.value.find { it?.productID.toString() == productId }
                                             notificationMessage = "📦 ${product?.productName ?: "Product"} viewed"
                                         } else {
@@ -244,30 +264,6 @@ fun ModernEcoSajhaDashboard() {
                                         Toast.makeText(context, "Error deleting product", Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                onToggleLike = { productId, newLikeState, productName ->
-                                    // Immediate notification update
-                                    notificationMessage = if (newLikeState) {
-                                        "❤️ $productName is liked and saved"
-                                    } else {
-                                        "💔 $productName is unliked and removed"
-                                    }
-
-                                    // Call ViewModel to update in database
-                                    val updateData = mutableMapOf<String, Any?>(
-                                        "isLiked" to newLikeState,
-                                        "likedAt" to if (newLikeState) System.currentTimeMillis() else null
-                                    )
-
-                                    viewModel.updateProduct(productId, updateData) { success, message ->
-                                        if (success) {
-                                            Log.d("LikeUpdate", "Product like state updated successfully")
-                                            viewModel.getAllProduct()
-                                        } else {
-                                            Log.e("LikeUpdate", "Failed to update like state: $message")
-                                            Toast.makeText(context, "Failed to update like: $message", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                },
                                 onAddProduct = {
                                     try {
                                         val intent = Intent(context, AddProductActivity::class.java)
@@ -292,6 +288,8 @@ fun ModernEcoSajhaDashboard() {
                         searchQuery = searchQuery,
                         onSearchQueryChange = { searchQuery = it },
                         products = products.value,
+                        favoriteProducts = favoriteProducts, // Pass favorites to search
+                        onToggleFavorite = ::toggleFavorite,   // Pass toggle function to search
                         onViewProduct = { productId ->
                             try {
                                 if (productId.isNotEmpty() && productId != "null") {
@@ -461,10 +459,11 @@ fun ModernEcoTopAppBar(
 fun ModernHomeScreen(
     products: List<ProductModel?>,
     loading: Boolean,
+    favoriteProducts: Set<String>, // **NEW: Add favorites parameter**
+    onToggleFavorite: (String, String) -> Unit, // **NEW: Add toggle function**
     onViewProduct: (String) -> Unit,
     onEditProduct: (String) -> Unit,
     onDeleteProduct: (String) -> Unit,
-    onToggleLike: (String, Boolean, String) -> Unit,
     onAddProduct: () -> Unit,
     onViewStats: () -> Unit,
     onViewAllProducts: () -> Unit
@@ -548,6 +547,14 @@ fun ModernHomeScreen(
             items(validProducts) { product ->
                 ModernProductCard(
                     product = product,
+                    isFavorite = favoriteProducts.contains(product.productID), // **NEW: Check if favorite**
+                    onToggleFavorite = { // **NEW: Simple toggle**
+                        val productId = product.productID?.toString() ?: ""
+                        val productName = product.productName ?: "Product"
+                        if (productId.isNotEmpty()) {
+                            onToggleFavorite(productId, productName)
+                        }
+                    },
                     onView = {
                         val productId = product.productID?.toString() ?: ""
                         if (productId.isNotEmpty()) {
@@ -564,13 +571,6 @@ fun ModernHomeScreen(
                         val productId = product.productID?.toString() ?: ""
                         if (productId.isNotEmpty()) {
                             onDeleteProduct(productId)
-                        }
-                    },
-                    onToggleLike = { newLikeState ->
-                        val productId = product.productID?.toString() ?: ""
-                        val productName = product.productName ?: "Product"
-                        if (productId.isNotEmpty()) {
-                            onToggleLike(productId, newLikeState, productName)
                         }
                     }
                 )
@@ -832,16 +832,16 @@ fun ModernEmptyStateSection(onAddProduct: () -> Unit) {
 @Composable
 fun ModernProductCard(
     product: ProductModel,
+    isFavorite: Boolean, // **NEW: Simple boolean parameter**
+    onToggleFavorite: () -> Unit, // **NEW: Simple toggle function**
     onView: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onToggleLike: (Boolean) -> Unit
+    onDelete: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    var isLiked by remember(product.productID) { mutableStateOf(product.isLiked) }
 
     val heartScale by animateFloatAsState(
-        targetValue = if (isLiked) 1.2f else 1.0f,
+        targetValue = if (isFavorite) 1.2f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessHigh
@@ -939,26 +939,22 @@ fun ModernProductCard(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // **UPDATED: Simplified heart icon**
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .clickable {
-                                val newLikeState = !isLiked
-                                isLiked = newLikeState
-                                product.isLiked = newLikeState
-                                onToggleLike(newLikeState)
-                            }
+                            .clickable { onToggleFavorite() }
                             .background(
-                                color = if (isLiked) Color.Red.copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f),
+                                color = if (isFavorite) Color.Red.copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f),
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = if (isLiked) "Unlike" else "Like",
-                            tint = if (isLiked) Color.Red else Color.Gray,
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Unlike" else "Like",
+                            tint = if (isFavorite) Color.Red else Color.Gray,
                             modifier = Modifier
                                 .size(24.dp)
                                 .scale(heartScale)
@@ -1362,12 +1358,15 @@ fun ModernLoadingSection() {
     }
 }
 
+// Updated ModernSearchScreen to include heart functionality
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernSearchScreen(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     products: List<ProductModel?>,
+    favoriteProducts: Set<String>, // **NEW: Add favorites parameter**
+    onToggleFavorite: (String, String) -> Unit, // **NEW: Add toggle function**
     onViewProduct: (String) -> Unit
 ) {
     val filteredProducts = remember(searchQuery, products) {
@@ -1443,6 +1442,14 @@ fun ModernSearchScreen(
                     ModernSearchResultCard(
                         product = product,
                         searchQuery = searchQuery,
+                        isFavorite = favoriteProducts.contains(product.productID), // **NEW: Check if favorite**
+                        onToggleFavorite = { // **NEW: Simple toggle**
+                            val productId = product.productID?.toString() ?: ""
+                            val productName = product.productName ?: "Product"
+                            if (productId.isNotEmpty()) {
+                                onToggleFavorite(productId, productName)
+                            }
+                        },
                         onView = {
                             val productId = product.productID?.toString() ?: ""
                             if (productId.isNotEmpty()) {
@@ -1456,10 +1463,13 @@ fun ModernSearchScreen(
     }
 }
 
+// Updated ModernSearchResultCard with heart functionality
 @Composable
 fun ModernSearchResultCard(
     product: ProductModel,
     searchQuery: String,
+    isFavorite: Boolean, // **NEW: Add favorite parameter**
+    onToggleFavorite: () -> Unit, // **NEW: Add toggle function**
     onView: () -> Unit
 ) {
     Card(
@@ -1524,6 +1534,16 @@ fun ModernSearchResultCard(
                     color = Color.Gray,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // **NEW: Add heart icon to search results**
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Unlike" else "Like",
+                    tint = if (isFavorite) Color.Red else Color.Gray,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
